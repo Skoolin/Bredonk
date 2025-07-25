@@ -1,0 +1,2 @@
+#define MAX_GAME_LENGTH 256
+#define MAX_STACK_HEIGHT 64
