@@ -7,6 +7,19 @@
 #include "piece.h"
 
 #pragma once
+
+static const int offsets[4] = {
+	-8, // up
+	+1, // right
+	+8, // down
+	-1, // left
+};
+
+/*
+* Board representation for the game of Tak. Current implementation for 6x6 only.
+* It maintains the current state of the game and allows moves to be made, undone, and checked for legality.
+* It also provides functionality to check if the game is in a final state and to get the result of the game.
+*/
 class TakBoard {
 public:
 	TakBoard();
@@ -36,15 +49,15 @@ private:
 	int32_t current_player; // white = 1, black = -1
 	int32_t move_count;
 	uint32_t zobrist;
-	Piece top_stones[36];
-	uint8_t stack_sizes[36];
-	Piece stacks[36][MAX_STACK_HEIGHT];
+	Piece top_stones[64];
+	uint8_t stack_sizes[64];
+	Piece stacks[64][MAX_STACK_HEIGHT];
 	move_t previous_moves[MAX_GAME_LENGTH];
-	MoveIterator move_lists[MAX_GAME_LENGTH];
+	MoveIterator* move_lists[MAX_GAME_LENGTH];
+	bool did_flatten[MAX_GAME_LENGTH];
 	int32_t state;
 	uint32_t w_reserves;
 	uint32_t b_reserves;
 	bool w_cap_placed;
 	bool b_cap_placed;
-
 };

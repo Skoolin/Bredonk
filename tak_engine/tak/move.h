@@ -46,4 +46,8 @@ struct move_t { // 16 bit encoding of move, can encode moves up to board size 8
 	inline int spread_direction() {
 		return square_and_type >> 6;
 	}
+
+	inline int spread_distance() {
+		return __builtin_popcount(spread_perm);
+	}
 };

@@ -1,24 +1,26 @@
 #include "tak_board.h"
 #include "../params.h"
 
-TakBoard::TakBoard()
-{
-	state = STATE_ONGOING;
-	current_player = 1;
-	move_count = 0;
-	
-	w_cap_placed = false;
-	b_cap_placed = false;
-	w_reserves = 30;
-	b_reserves = 30;
+TakBoard::TakBoard() :
+	top_stones{ Piece::NONE },
+	stack_sizes{ 0 },
+	stacks{ Piece::NONE },
 
-	for (int i = 0; i < 36; i++) {
-		top_stones[i] = Piece::NONE;
-		stack_sizes[i] = 0;
-		for (int j = 0; j < MAX_STACK_HEIGHT; j++) {
-			stacks[i][j] = Piece::NONE;
-		}
-	}
+	previous_moves{ 0, 0 },
+	move_count(0),
+	move_lists{  },
+	did_flatten{ false },
+
+	state(STATE_ONGOING),
+	current_player(PLAYER_WHITE),
+	zobrist(0),
+
+	w_reserves(30),
+	b_reserves(30),
+	w_cap_placed(false),
+	b_cap_placed(false)
+{
+
 }
 
 /*
@@ -133,13 +135,6 @@ void TakBoard::make_move(move_t m)
 
 	// TODO update zobrist
 
-	static const int offsets[4] = {
-		-8, // up
-		+1, // right
-		+8, // down
-		-1, // left
-	};
-
 	if (m.is_spread()) { // spread move
 		int start_square = m.square_idx();
 		int direction = m.spread_direction();
@@ -148,19 +143,20 @@ void TakBoard::make_move(move_t m)
 		// picked up stones
 		Piece stones[8];
 
-		// pick up top stones
+		uint8_t perm = m.spread_perm;
+		// count how many captives need to be picked up
+		int trailing_zeros = std::countr_zero(perm); // count trailing zeros in spread_perm
+		int picked_up = 8 - trailing_zeros; // 8 is the max number of pieces in a move representation
+		
+		perm >>= trailing_zeros; // remove trailing zeros from perm
+		
+		// pick up stones
+
+		// top stone:
 		stones[0] = top_stones[start_square];
 		stack_sizes[start_square]--;
 
-		// count how many captives need to be picked up
-		int picked_up = 6; // max 6 pieces
-		uint8_t perm = m.spread_perm;
-		while (!(perm & 0b1)) { // TODO use trailing zeros intrinsic
-			perm = perm >> 1;
-			picked_up--;
-		}
-		
-		// pick up captives
+		// rest of stack:
 		for (int i = 1; i < picked_up; i++) {
 			stack_sizes[start_square]--;
 			stones[i] = stacks[start_square][stack_sizes[start_square]];
@@ -180,16 +176,25 @@ void TakBoard::make_move(move_t m)
 				current_square += square_offset;
 				// smash top wall
 				if (stone == Piece::W_CAP || stone == Piece::B_CAP) {
-					if (top_stones[current_square] == Piece::B_WALL)
-						top_stones[current_square] = Piece::B_FLAT;
-					if (top_stones[current_square] == Piece::W_WALL)
-						top_stones[current_square] = Piece::W_FLAT;
+					if (is_wall(top_stones[current_square])) {
+						did_flatten[move_count - 1] = true;
+						if (top_stones[current_square] == Piece::B_WALL) {
+							top_stones[current_square] = Piece::B_FLAT;
+						}
+						if (top_stones[current_square] == Piece::W_WALL) {
+							top_stones[current_square] = Piece::W_FLAT;
+						}
+					}
+					else {
+						did_flatten[move_count - 1] = false;
+					}
 				}
 			}
 			if (stack_sizes[current_square])
 				stacks[current_square][stack_sizes[current_square] - 1] = top_stones[current_square];
 			top_stones[current_square] = stone;
 			stack_sizes[current_square]++;
+			perm >>= 1; // shift to next stone
 		}
 	}
 	else { // placement move
@@ -219,15 +224,70 @@ void TakBoard::make_move(move_t m)
 
 void TakBoard::undo_move()
 {
+	// TODO update zobrist
+
 	move_count--;
 	move_t m = previous_moves[move_count];
 	current_player = -current_player;
 
-	if (m.is_spread()) { // spread move
-		
-	}
-	else { // placement
+	if (m.is_spread()) { // undo spread move
+		int start_square = m.square_idx();
+		int direction = m.spread_direction();
+		int square_offset = offsets[direction];
+		int distance = m.spread_distance();
 
+		uint8_t perm = m.spread_perm;
+		int trailing_zeros = std::countr_zero(perm); // count trailing zeros in spread_perm
+		int pieces_to_put_back = 8 - trailing_zeros; // 8 is the max number of pieces in a move representation
+		perm >>= trailing_zeros; // remove trailing zeros from perm
+
+		// TODO this can be done directly on the square stack!
+		Piece stones[8];
+
+		// pick up stones
+		int current_square = start_square + square_offset * distance;
+		bool is_last_square = true;
+
+		for (int i = pieces_to_put_back - 1; i >= 0; i--) {
+			Piece stone = top_stones[current_square];
+			stones[i] = stone;
+
+			stack_sizes[current_square]--;
+			if (stack_sizes[current_square] > 0) {
+				top_stones[current_square] = stacks[current_square][stack_sizes[current_square] - 1];
+			}
+			else {
+				top_stones[current_square] = Piece::NONE;
+			}
+			if (perm & 0b1) {
+				// undo flatten
+				if (is_last_square && is_capstone(stone) && did_flatten[move_count]) {
+					Piece top_stone = top_stones[current_square];
+					if (top_stone == Piece::B_FLAT) {
+						top_stones[current_square] = Piece::B_WALL;
+					}
+					else if (top_stone == Piece::W_FLAT) {
+						top_stones[current_square] = Piece::W_WALL;
+					}
+				}
+				// move to previous square
+				current_square -= square_offset;
+				is_last_square = false;
+			}
+			perm >>= 1; // shift to next stone
+		}
+
+		// put back stones
+		stacks[start_square][stack_sizes[start_square]] = top_stones[start_square];
+		for (int i = 0; i < pieces_to_put_back; i++) {
+			stacks[start_square][stack_sizes[start_square] + i + 1] = stones[i];
+		}
+		stack_sizes[start_square] += pieces_to_put_back;
+		// adjust top stone
+		top_stones[start_square] = stacks[start_square][stack_sizes[start_square] - 1];
+	}
+
+	else { // undo placement
 		// remove stone
 		int square = m.square_idx();
 		top_stones[square] = Piece::NONE;
@@ -251,6 +311,7 @@ void TakBoard::undo_move()
 
 uint64_t TakBoard::get_bitmap(Piece type)
 {
+	// TODO internal board representation with bitmaps
 	uint64_t result = 0;
 	for (int i = 0; i < 36; i++) {
 		if (top_stones[i] == type)
