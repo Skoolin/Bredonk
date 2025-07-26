@@ -187,7 +187,7 @@ void TakBoard::make_move(move_t m)
 				current_square += square_offset;
 				// smash top wall
 				if (stone == Piece::W_CAP || stone == Piece::B_CAP) {
-					if (is_wall(top_stones[current_square])) {
+					if (top_stones[current_square].is_wall()) {
 						did_flatten[move_count - 1] = true;
 						if (top_stones[current_square] == Piece::B_WALL) {
 							top_stones[current_square] = Piece::B_FLAT;
@@ -272,7 +272,7 @@ void TakBoard::undo_move()
 			}
 			if (perm & 0b1) {
 				// undo flatten
-				if (is_last_square && is_capstone(stone) && did_flatten[move_count]) {
+				if (is_last_square && stone.is_capstone() && did_flatten[move_count]) {
 					Piece top_stone = top_stones[current_square];
 					if (top_stone == Piece::B_FLAT) {
 						top_stones[current_square] = Piece::B_WALL;
@@ -387,16 +387,16 @@ void TakBoard::generate_moves(MoveList* move_list)
 				bool capstone_placed = (current_player == PLAYER_WHITE) ? w_cap_placed : b_cap_placed;
 
 				if (reserves > 0) { // can place a flat/wall
-					// wall placement
-					move_list->add_move({
-						.square_and_type = (uint8_t)((square_idx & 0b00111111) | (2 << 6)), // wall
-						.spread_perm = 0 // no spread
-					});
 					// flat placement
 					move_list->add_move({
 						.square_and_type = (uint8_t)((square_idx & 0b00111111) | (1 << 6)), // flat
 						.spread_perm = 0 // no spread
 					});
+					// wall placement
+					move_list->add_move({
+						.square_and_type = (uint8_t)((square_idx & 0b00111111) | (2 << 6)), // wall
+						.spread_perm = 0 // no spread
+						});
 				}
 				if (!capstone_placed) { // can place a capstone
 					move_list->add_move({
@@ -405,8 +405,8 @@ void TakBoard::generate_moves(MoveList* move_list)
 					});
 				}
 			}
-			else if (get_player(top_stones[square_idx]) == current_player) { // add spreads
-				// TODO implement spreads
+			else if (top_stones[square_idx].get_player() == current_player) { // add spreads
+				// TODO implement spread moves
 			}
 		}
 }
