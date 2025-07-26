@@ -1,5 +1,6 @@
 #include "tak_board.h"
 #include "../params.h"
+#include "move_list.h"
 
 TakBoard::TakBoard() :
 	top_stones{ Piece::NONE },
@@ -8,7 +9,7 @@ TakBoard::TakBoard() :
 
 	previous_moves{ 0, 0 },
 	move_count(0),
-	move_lists{  },
+	move_lists{ nullptr },
 	did_flatten{ false },
 
 	state(STATE_ONGOING),
@@ -99,12 +100,14 @@ int32_t TakBoard::get_result()
 	uint64_t w_bitmap = get_bordered_bitmap(Piece::W_CAP) | get_bordered_bitmap(Piece::W_FLAT);
 	uint64_t b_bitmap = get_bordered_bitmap(Piece::B_CAP) | get_bordered_bitmap(Piece::B_FLAT);
 
+	// TODO don't repeat has_road check, already done in is_final()
 	bool w_road = has_road(w_bitmap);
 	bool b_road = has_road(b_bitmap);
 
-	if (current_player == PLAYER_WHITE && w_road)
+	// dragon clause: if both players have a road, the player who made the final move wins
+	if (current_player == PLAYER_BLACK && w_road)
 		return STATE_WHITE_WIN;
-	if (current_player == PLAYER_BLACK && b_road)
+	if (current_player == PLAYER_WHITE && b_road)
 		return STATE_BLACK_WIN;
 	if (w_road)
 		return STATE_WHITE_WIN;
@@ -120,6 +123,13 @@ int32_t TakBoard::get_result()
 		return STATE_BLACK_WIN;
 
 	return STATE_DRAW;
+}
+
+// returns zobrist hash of the current board state
+uint32_t TakBoard::get_hash()
+{
+	// TODO implement zobrist
+	return 0;
 }
 
 int32_t get_player(Piece p) {
@@ -153,6 +163,7 @@ void TakBoard::make_move(move_t m)
 		// pick up stones
 
 		// top stone:
+		// TODO this can be done directly on the square stack!
 		stones[0] = top_stones[start_square];
 		stack_sizes[start_square]--;
 
@@ -242,7 +253,7 @@ void TakBoard::undo_move()
 		perm >>= trailing_zeros; // remove trailing zeros from perm
 
 		// TODO this can be done directly on the square stack!
-		Piece stones[8];
+		Piece stones[8]{ Piece::NONE };
 
 		// pick up stones
 		int current_square = start_square + square_offset * distance;
@@ -307,6 +318,26 @@ void TakBoard::undo_move()
 				b_reserves++;
 		}
 	}
+
+	// clear move list for this move
+	if (move_lists[move_count] != nullptr) {
+		move_lists[move_count]->clear();
+	}
+}
+
+MoveIterator* TakBoard::get_legal_moves()
+{
+	MoveIterator* move_iter = move_lists[move_count];
+	if (move_iter == nullptr) {
+		move_iter = new MoveList();
+		move_lists[move_count] = move_iter;
+	}
+
+	if (move_iter->is_empty()) {
+		generate_moves((MoveList*) move_iter); // TODO this assumes that the move_iter is a MoveList!
+	}
+
+	return move_iter;
 }
 
 uint64_t TakBoard::get_bitmap(Piece type)
@@ -343,4 +374,39 @@ uint64_t TakBoard::get_bordered_bitmap(Piece type)
 		shift += 2;
 	}
 	return result;
+}
+
+void TakBoard::generate_moves(MoveList* move_list)
+{
+	for (int row = 0; row < 6; row++)
+		for (int col = 0; col < 6; col++) {
+			int square_idx = (1+row) * 8 + col; // 6x6 board, 8x8 indexing for padded bitboards
+
+			if (top_stones[square_idx] == Piece::NONE) { // add placements
+				int reserves = (current_player == PLAYER_WHITE) ? w_reserves : b_reserves;
+				bool capstone_placed = (current_player == PLAYER_WHITE) ? w_cap_placed : b_cap_placed;
+
+				if (reserves > 0) { // can place a flat/wall
+					// wall placement
+					move_list->add_move({
+						.square_and_type = (uint8_t)((square_idx & 0b00111111) | (2 << 6)), // wall
+						.spread_perm = 0 // no spread
+					});
+					// flat placement
+					move_list->add_move({
+						.square_and_type = (uint8_t)((square_idx & 0b00111111) | (1 << 6)), // flat
+						.spread_perm = 0 // no spread
+					});
+				}
+				if (!capstone_placed) { // can place a capstone
+					move_list->add_move({
+						.square_and_type = (uint8_t)((square_idx & 0b00111111) | (3 << 6)), // capstone
+						.spread_perm = 0 // no spread
+					});
+				}
+			}
+			else if (get_player(top_stones[square_idx]) == current_player) { // add spreads
+				// TODO implement spreads
+			}
+		}
 }

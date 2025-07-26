@@ -8,4 +8,6 @@
 class MoveIterator {
 public:
 	virtual move_t get_next() = 0;
+	virtual void clear() = 0;
+	virtual bool is_empty() const = 0;
 };

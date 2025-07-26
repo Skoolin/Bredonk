@@ -1,5 +1,6 @@
 #pragma once
 
+// Piece representation for the game of Tak.
 enum Piece : int8_t {
 	NONE = 0,
 	W_FLAT = 1, // 0b001
@@ -20,4 +21,10 @@ inline bool is_wall(Piece p) {
 
 inline bool is_capstone(Piece p) {
 	return p == Piece::W_CAP || p == Piece::B_CAP;
+}
+
+inline bool get_player(Piece p) {
+	if (p == Piece::NONE)
+		return 0; // no player
+	return (p > Piece::NONE) ? 1 : -1; // 1 for white, -1 for black
 }

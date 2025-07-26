@@ -4,6 +4,7 @@
 #include "../params.h"
 #include "move.h"
 #include "move_iterator.h"
+#include "move_list.h"
 #include "piece.h"
 
 #pragma once
@@ -31,7 +32,7 @@ public:
 	void make_move(move_t m);
 	void undo_move();
 	bool is_legal(move_t m);
-	MoveIterator get_legal_moves();
+	MoveIterator* get_legal_moves();
 	
 	static const int32_t PLAYER_WHITE = 1;
 	static const int32_t PLAYER_BLACK = -1;
@@ -60,4 +61,5 @@ private:
 	uint32_t b_reserves;
 	bool w_cap_placed;
 	bool b_cap_placed;
+	void generate_moves(MoveList* move_list);
 };
