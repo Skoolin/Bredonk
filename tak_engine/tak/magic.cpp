@@ -2,7 +2,86 @@
 
 #include <bit>
 #include <iostream>
+#include <vector>
 
+static std::array<uint64_t, 64> generate_magics()
+{
+	std::array<uint64_t, 64> magics = {};
+
+	// initialize random
+	auto rand = ConstRandom::gen(87654321);
+
+	for (int row = 0; row < 6; row++) {
+		for (int col = 0; col < 6; col++) {
+			int square_idx = (row + 1) * 8 + col; // 6x6 board, 8x8 indexing for padded bitboards
+			uint64_t current_attempt = 0; // current attempt counter
+
+			uint64_t collision_table[1 << BITS_PER_INDEX] = { 0 }; // collision table for magic hashes
+
+			// generate all possible bitboards!
+			std::vector<uint64_t> bitboards = {};
+			for (uint8_t row_bitboard = 0; row_bitboard < (1 << 6); row_bitboard++) {
+				for (uint8_t col_bitboard = 0; col_bitboard < (1 << 6); col_bitboard++) {
+					uint64_t blocker_bitboard = 0;
+					for (int r = 0; r < 6; r++) {
+						if (row_bitboard & (1ULL << r)) {
+							blocker_bitboard |= (1ULL << ((r + 1) * 8 + col)); // set row blocker
+						}
+					}
+					for (int c = 0; c < 6; c++) {
+						if (col_bitboard & (1ULL << c)) {
+							blocker_bitboard |= (1ULL << ((row + 1) * 8 + c)); // set column blocker
+						}
+					}
+
+					// ignore the origin square
+					if (blocker_bitboard & (1ULL << square_idx)) {
+						continue;
+					}
+
+					bitboards.push_back(blocker_bitboard);
+				}
+			}
+
+
+			while (++current_attempt) {
+				if (current_attempt % 100000000 == 0)
+					std::cout << "attempt # " << current_attempt << std::endl;
+
+				bool end_attempt = false;
+
+				// generate a random 64bit magic number
+				uint64_t magic_hash = 0;
+				magic_hash = ConstRandom::next(&rand);
+				magic_hash &= ConstRandom::next(&rand);
+				magic_hash &= ConstRandom::next(&rand);
+
+				for (uint64_t blocker_bitboard : bitboards) {
+					uint64_t hash = blocker_bitboard * magic_hash;
+					hash >>= (64 - BITS_PER_INDEX); // reduce to BITS_PER_INDEX bits
+
+					// check if this hash is already in use
+					if (collision_table[hash] == current_attempt) {
+						// collision detected; move on to next attempt
+						end_attempt = true;
+						break;
+					}
+					collision_table[hash] = current_attempt; // mark this hash as used
+				}
+
+				if (!end_attempt) {
+					// save magic number
+					magics[square_idx] = magic_hash;
+					break;
+				}
+			}
+		}
+	}
+
+	return magics;
+}
+
+std::array<uint64_t, 64> Magic::magic_hashes = generate_magics();
 std::array<std::array<magic_table_entry_t, 1 << BITS_PER_INDEX>, 64> Magic::magic_table = {};
 
 bool Magic::is_initialized = false;
@@ -17,8 +96,6 @@ void Magic::init() {
 		int row_idx = (row + 1) * 8; // 6x6 board, 8x8 indexing for padded bitboards
 		for (int col = 0; col < 6; col++) {
 			int square_idx = row_idx + col; // calculate square index
-
-			std::cout << "magic for square " << square_idx << ": " << Magic::magic_hashes[square_idx] << std::endl;
 
 			for (uint8_t row_bitboard = 0; row_bitboard < (1 << 6); row_bitboard++) {
 				for (uint8_t col_bitboard = 0; col_bitboard < (1 << 6); col_bitboard++) {
@@ -104,9 +181,9 @@ SpreadIterator::SpreadIterator(int start_square, int height, magic_table_entry_t
 	_forward();
 }
 
-// TODO is this cheaper than fetching a single byte from a 256-byte permutation table?
+// TODO is this cheaper than fetching from a pre-generated permutation table?
 void SpreadIterator::_forward() {
-	int max_perm = 1 << max_height;
+	uint32_t max_perm = 1 << max_height;
 	while (current_direction < 4) {
 		if (current_perm >= max_perm) {
 			current_direction++;
@@ -128,7 +205,7 @@ bool SpreadIterator::has_next() const {
 }
 
 move_t SpreadIterator::next() {
-	move_t move = { (uint8_t) (start_square | (current_direction << 6)), current_perm++ };
+	move_t move = { (uint8_t) (start_square | (current_direction << 6U)), (uint8_t) current_perm++ };
 	_forward();
 	return move;
 }

@@ -44,11 +44,11 @@ public:
 	}
 
 	constexpr uint8_t to_int() const {
-		return static_cast<uint8_t>(p & 0b111);
+		return static_cast<uint8_t>(p & 0b111U);
 	}
 
 	constexpr uint8_t get_type_bits() const {
-		return static_cast<uint8_t>(p & 0b11);
+		return static_cast<uint8_t>(p & 0b11U);
 	}
 
 private:
