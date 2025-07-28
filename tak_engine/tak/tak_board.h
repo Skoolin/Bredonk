@@ -26,17 +26,17 @@ public:
 	TakBoard();
 	~TakBoard();
 
-	bool is_final();
-	int32_t get_result(); // 0 if draw, 1 if white wins, -1 if black wins
+	bool is_final() const;
+	int32_t get_result() const; // 0 if draw, 1 if white wins, -1 if black wins
 
 	uint32_t get_hash();
 
 	void make_move(move_t m);
 	void undo_move(move_t m);
 	bool is_legal(move_t m);
-	MoveIterator* get_legal_moves();
+	MoveList* get_legal_moves();
 
-	uint64_t get_bordered_bitboard(Piece type);
+	uint64_t get_bordered_bitboard(Piece type) const;
 
 	static const uint64_t BORDER_MASK = 0x00FDFDFDFDFDFD00ULL; // bordered layout: (1 = board, 0 = border)
 
@@ -52,7 +52,7 @@ private:
 
 	int32_t move_count;
 	move_t previous_moves[MAX_GAME_LENGTH];
-	MoveIterator* move_lists[MAX_GAME_LENGTH];
+	MoveList* move_lists[MAX_GAME_LENGTH];
 	bool did_flatten[MAX_GAME_LENGTH];
 
 	uint32_t zobrist;

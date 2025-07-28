@@ -31,7 +31,8 @@ struct move_t {
 
    // returns if the piece placed is a capstone  
    inline bool is_cap_placement() const {
-	   return Piece(static_cast<Piece::Value>(square_and_type >> 6)).is_capstone();
+	   //return Piece(static_cast<Piece::Value>(square_and_type >> 6)).is_capstone();
+       return (square_and_type & 0b11000000U) == 0b11000000U;
    }
 
    // returns the integer representation of the piece type  

@@ -33,7 +33,7 @@ void MoveList::clear()
 	current_index = 0;
 }
 
-int32_t MoveList::size() const
+uint32_t MoveList::size() const
 {
 	return move_count;
 }

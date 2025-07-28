@@ -11,15 +11,15 @@ int main()
 {
 	Magic::init();
 
-	TakBoard board;
+	TakBoard* board;
 
 	for (int depth = 1; depth < 8; depth++) {
 		// Reset the board to the initial state
-		board = TakBoard();
+		board = new TakBoard();
 
 		// start timer
 		auto start = std::chrono::high_resolution_clock::now();
-		int nodes = perft(board, depth);
+		uint64_t nodes = perft(board, depth);
 		// stop timer
 		auto end = std::chrono::high_resolution_clock::now();
 		// print perft result
@@ -28,6 +28,8 @@ int main()
 		auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 		std::cout << "Time taken: " << duration.count() << " ms." << std::endl;
 		std::cout << "Nodes per second: " << std::fixed << (nodes * 1000.0 / duration.count()) << std::endl;
+
+		delete board;
 	}
 
 	return 0;

@@ -5,10 +5,10 @@ Bredonk is my attempt on implementing a competitive Tak Board Game Engine in C++
 # Feature Roadmap
 
 ## Tak Implementation
-- [ ] Bitboard Representation
-- [ ] Move Generation
+- [X] Bitboard Representation
+- [X] Move Generation
 - [X] Make/Unmake Moves
-- [ ] Magic Bitboards for Spreads
+- [X] Magic Bitboards for Spreads
 - [ ] Komi Support
 
 ## Search

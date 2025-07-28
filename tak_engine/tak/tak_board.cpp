@@ -12,7 +12,6 @@ TakBoard::TakBoard() :
 
 	previous_moves{ 0, 0 },
 	move_count(0),
-	move_lists{ nullptr },
 	did_flatten{ false },
 
 	state(STATE_ONGOING),
@@ -35,7 +34,8 @@ TakBoard::TakBoard() :
 		0ULL  // B_CAP
 	}
 {
-
+	for (int i = 0; i < MAX_GAME_LENGTH; i++)
+		move_lists[i] = nullptr;
 }
 
 TakBoard::~TakBoard()
@@ -43,6 +43,7 @@ TakBoard::~TakBoard()
 	// clean up move lists
 	for (int i = 0; i < MAX_GAME_LENGTH; i++) {
 		if (move_lists[i] != nullptr) {
+			// TODO why does this error?
 			delete move_lists[i];
 			move_lists[i] = nullptr;
 		}
@@ -94,7 +95,7 @@ static bool has_road(uint64_t bitmap) {
 	return false;
 }
 
-bool TakBoard::is_final()
+bool TakBoard::is_final() const
 {
 	// check reserves
 	if (w_reserves == 0 && w_cap_placed)
@@ -116,7 +117,7 @@ bool TakBoard::is_final()
 	return has_road(b_bitmap);
 }
 
-int32_t TakBoard::get_result()
+int32_t TakBoard::get_result() const
 {
 	if (!is_final())
 		return STATE_ONGOING;
@@ -157,7 +158,7 @@ uint32_t TakBoard::get_hash()
 	return 0;
 }
 
-int32_t get_player(Piece p) {
+static int32_t get_player(Piece p) {
 	if (p == 0)
 		return 0;
 	return (p > 0) ? 1 : -1;
@@ -180,10 +181,10 @@ void TakBoard::make_move(move_t m)
 
 		uint8_t perm = m.spread_perm;
 		// count how many captives need to be picked up
-		int trailing_zeros = std::countr_zero(perm); // count trailing zeros in spread_perm
-		int picked_up = 8 - trailing_zeros; // 8 is the max number of pieces in a move representation
+		int leading_zeros = std::countl_zero(perm); // count trailing zeros in spread_perm
+		int picked_up = 8 - leading_zeros; // 8 is the max number of pieces in a move representation
 		
-		perm >>= trailing_zeros; // remove trailing zeros from perm
+		perm <<= leading_zeros; // remove trailing zeros from perm
 		
 		// pick up stones
 
@@ -218,7 +219,7 @@ void TakBoard::make_move(move_t m)
 
 			bordered_bitboards[top_stones[current_square].to_int()] &= ~(1ULL << current_square); // remove top stone from bitboard
 
-			if (perm & 0b1) { // move to next square
+			if (perm & 0b10000000) { // move to next square
 				current_square += square_offset;
 				// smash top wall
 				if (stone == Piece::W_CAP || stone == Piece::B_CAP) {
@@ -242,7 +243,7 @@ void TakBoard::make_move(move_t m)
 			top_stones[current_square] = stone;
 			bordered_bitboards[stone.to_int()] |= (1ULL << current_square); // add piece to bitboard
 			stack_sizes[current_square]++;
-			perm >>= 1; // shift to next stone
+			perm <<= 1; // shift to next stone
 		}
 	}
 	else { // placement move
@@ -287,9 +288,9 @@ void TakBoard::undo_move(move_t m)
 		int distance = m.spread_distance();
 
 		uint8_t perm = m.spread_perm;
-		int trailing_zeros = std::countr_zero(perm); // count trailing zeros in spread_perm
-		int pieces_to_put_back = 8 - trailing_zeros; // 8 is the max number of pieces in a move representation
-		perm >>= trailing_zeros; // remove trailing zeros from perm
+		int leading_zeros = std::countl_zero(perm); // count trailing zeros in spread_perm
+		int pieces_to_put_back = 8 - leading_zeros; // 8 is the max number of pieces in a move representation
+		perm <<= leading_zeros; // remove trailing zeros from perm
 
 		// TODO this can be done directly on the square stack!
 		Piece stones[8]{ Piece::NONE };
@@ -312,7 +313,7 @@ void TakBoard::undo_move(move_t m)
 				top_stones[current_square] = Piece::NONE;
 				bordered_bitboards[((Piece)Piece::NONE).to_int()] |= (1ULL << current_square); // add empty square to bitboard
 			}
-			if (perm & 0b1) {
+			if (perm & 0b10000000) {
 				// undo flatten
 				if (is_last_square && stone.is_capstone() && did_flatten[move_count]) {
 					Piece top_stone = top_stones[current_square];
@@ -330,7 +331,7 @@ void TakBoard::undo_move(move_t m)
 				current_square -= square_offset;
 				is_last_square = false;
 			}
-			perm >>= 1; // shift to next stone
+			perm <<= 1; // shift to next stone
 		}
 
 		// put back stones
@@ -383,9 +384,9 @@ bool TakBoard::is_legal(move_t m)
 	return true;
 }
 
-MoveIterator* TakBoard::get_legal_moves()
+MoveList* TakBoard::get_legal_moves()
 {
-	MoveIterator* move_iter = move_lists[move_count];
+	MoveList* move_iter = move_lists[move_count];
 	if (move_iter == nullptr) {
 		move_iter = new MoveList();
 		move_lists[move_count] = move_iter;
@@ -393,13 +394,13 @@ MoveIterator* TakBoard::get_legal_moves()
 
 	// TODO partial move generation
 	if (move_iter->is_empty()) {
-		generate_moves((MoveList*) move_iter); // TODO this assumes that the move_iter is a MoveList!
+		generate_moves(move_iter); // TODO this assumes that the move_iter is a MoveList!
 	}
 
 	return move_iter;
 }
 
-uint64_t TakBoard::get_bordered_bitboard(Piece type)
+uint64_t TakBoard::get_bordered_bitboard(Piece type) const
 {
 	return bordered_bitboards[type.to_int()] & BORDER_MASK;
 }
@@ -439,7 +440,8 @@ void TakBoard::generate_moves(MoveList* move_list)
 					move_list->add_move(spread_iter.next());
 				}
 
-				if (is_capstone) { // add capstone smash moves
+				// TODO
+				if (false && is_capstone) { // add capstone smash moves
 					uint64_t walls = get_bordered_bitboard(Piece::W_WALL) | get_bordered_bitboard(Piece::B_WALL);
 					uint64_t capstones = get_bordered_bitboard(Piece::W_CAP) | get_bordered_bitboard(Piece::B_CAP);
 
