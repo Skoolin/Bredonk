@@ -24,42 +24,40 @@ static const int offsets[4] = {
 class TakBoard {
 public:
 	TakBoard();
+	~TakBoard();
+
 	bool is_final();
 	int32_t get_result(); // 0 if draw, 1 if white wins, -1 if black wins
 
 	uint32_t get_hash();
 
 	void make_move(move_t m);
-	void undo_move();
+	void undo_move(move_t m);
 	bool is_legal(move_t m);
 	MoveIterator* get_legal_moves();
-	
-	static const int32_t PLAYER_WHITE = 1;
-	static const int32_t PLAYER_BLACK = -1;
 
-	static const int32_t STATE_ONGOING = 2;
-	static const int32_t STATE_DRAW = 0;
-	static const int32_t STATE_BLACK_WIN = -1;
-	static const int32_t STATE_WHITE_WIN = 1;
-	static const int32_t STATE_ILLEGAL = 3;
+	uint64_t get_bordered_bitboard(Piece type);
 
-	uint64_t get_bitmap(Piece type);
-	uint64_t get_bordered_bitmap(Piece type);
+	static const uint64_t BORDER_MASK = 0x00FDFDFDFDFDFD00ULL; // bordered layout: (1 = board, 0 = border)
 
 private:
-	int32_t current_player; // white = 1, black = -1
-	int32_t move_count;
-	uint32_t zobrist;
-	Piece top_stones[64];
-	uint8_t stack_sizes[64];
-	Piece stacks[64][MAX_STACK_HEIGHT];
-	move_t previous_moves[MAX_GAME_LENGTH];
-	MoveIterator* move_lists[MAX_GAME_LENGTH];
-	bool did_flatten[MAX_GAME_LENGTH];
+	void generate_moves(MoveList* move_list);
+
 	int32_t state;
+	int32_t current_player; // white = 1, black = -1
 	uint32_t w_reserves;
 	uint32_t b_reserves;
 	bool w_cap_placed;
 	bool b_cap_placed;
-	void generate_moves(MoveList* move_list);
+
+	int32_t move_count;
+	move_t previous_moves[MAX_GAME_LENGTH];
+	MoveIterator* move_lists[MAX_GAME_LENGTH];
+	bool did_flatten[MAX_GAME_LENGTH];
+
+	uint32_t zobrist;
+	Piece top_stones[64];
+	uint8_t stack_sizes[64];
+	Piece stacks[64][MAX_STACK_HEIGHT];
+	uint64_t bordered_bitboards[8]; // NONE, W_FLAT, W_WALL, W_CAP, __ILLEGAL__, B_FLAT, B_WALL, B_CAP
 };

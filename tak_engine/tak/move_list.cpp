@@ -1,9 +1,9 @@
 #include "move_list.h"
-#include <cassert>
 
 MoveList::MoveList() :
 	move_count(0),
-	current_index(0)
+	current_index(0),
+	moves()
 {
 }
 
@@ -11,15 +11,19 @@ MoveList::~MoveList()
 {
 }
 
-move_t MoveList::get_next()
+move_t MoveList::next()
 {
-	assert(current_index < MoveList_MAX_MOVES, "MoveList::get_next() called when no more moves are available.");
+	// assuming has_next() is called before this method
 	return moves[current_index++];
+}
+
+bool MoveList::has_next() const
+{
+	return current_index < move_count;
 }
 
 void MoveList::add_move(move_t m)
 {
-	assert(move_count < MoveList_MAX_MOVES, "MoveList::add_move() called when move list is full.");
 	moves[move_count++] = m;
 }
 
