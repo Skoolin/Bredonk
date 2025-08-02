@@ -10,13 +10,6 @@
 
 #pragma once
 
-static const int offsets[4] = {
-	+8, // up
-	+1, // right
-	-8, // down
-	-1, // left
-};
-
 /*
 * Board representation for the game of Tak. Current implementation for 6x6 only.
 * It maintains the current state of the game and allows moves to be made, undone, and checked for legality.
@@ -38,10 +31,17 @@ public:
 	void undo_move(move_t m);
 	bool is_legal(move_t m);
 	MoveList* get_legal_moves();
+	bool is_swap() const;
 
 	bitboard_t get_bordered_bitboard(Piece type) const;
 
 	static constexpr bitboard_t BORDER_MASK = 0x00FDFDFDFDFDFD00ULL; // bordered layout: (1 = board, 0 = border)
+	static constexpr int offsets[4] = {
+		+8, // up
+		+1, // right
+		-8, // down
+		-1, // left
+	};
 
 private:
 	void generate_moves(MoveList* move_list);

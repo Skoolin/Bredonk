@@ -173,6 +173,7 @@ int32_t TakBoard::get_result() const
 	int w_count = get_bordered_bitboard(Piece::W_FLAT).count();
 	int b_count = get_bordered_bitboard(Piece::B_FLAT).count();
 
+	//TODO komi
 	if (w_count > b_count)
 		return STATE_WHITE_WIN;
 	if (b_count > w_count)
@@ -278,7 +279,7 @@ void TakBoard::make_move(move_t m)
 	}
 	else { // placement move
 		int square = m.square_idx();
-		Piece p = m.piece_type(current_player);
+		Piece p = m.piece_type(is_swap ? 1-current_player: current_player);
 
 		top_stones[square] = p;
 		bordered_bitboards[((Piece)Piece::NONE).to_int()] &= ~(1ULL << square); // remove empty square from bitboard
@@ -433,6 +434,11 @@ MoveList* TakBoard::get_legal_moves()
 	return move_iter;
 }
 
+bool TakBoard::is_swap() const
+{
+	return move_count < 2;
+}
+
 bitboard_t TakBoard::get_bordered_bitboard(Piece type) const
 {
 	return bordered_bitboards[type.to_int()] & BORDER_MASK;
@@ -451,10 +457,11 @@ void TakBoard::generate_moves(MoveList* move_list)
 				if (reserves > 0) { // can place a flat/wall
 					// flat placement
 					move_list->add_move({ (uint8_t)((square_idx & 0b00111111) | (1 << 6)), 0 }); // flat
+					if (!is_swap)
 					// wall placement
 					move_list->add_move({ (uint8_t)((square_idx & 0b00111111) | (2 << 6)), 0} ); // wall
 				}
-				if (!capstone_placed) { // can place a capstone
+				if (!is_swap && !capstone_placed) { // can place a capstone
 					move_list->add_move({ (uint8_t)((square_idx & 0b00111111) | (3 << 6)), 0 }); // capstone
 				}
 			}

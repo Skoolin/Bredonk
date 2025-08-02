@@ -4,6 +4,7 @@
 #include <bit>
 #include <iostream>
 #include <vector>
+#include "tak_board.h"
 
 // TODO should be done at compile time for slightly faster startup
 static std::array<uint64_t, 64> generate_magics()
@@ -182,29 +183,48 @@ SpreadIterator Magic::get_spread_iterator(int square_idx, bitboard_t blocker_bit
 	hash >>= (uint64_t)( 64U - BITS_PER_INDEX); // reduce to BITS_PER_INDEX bits
 	magic_table_entry_t entry = Magic::magic_table[square_idx][hash];
 
-	return SpreadIterator(square_idx, height, entry);
+	return SpreadIterator(square_idx, height, entry, 0); // wall_bitboard = 0 so that no smashes possible
 }
 
 SpreadIterator Magic::get_capstone_iterator(int square_idx, bitboard_t wall_bitboard, bitboard_t capstone_bitboard, int height)
 {
-	// TODO implement capstone iterator creation
-	return SpreadIterator(0, 0, Magic::magic_table[0][0]);
+	if (height > 6)
+		height = 6;
+	bitboard_t mask = Magic::magic_masks[square_idx];
+	uint64_t hash = ((wall_bitboard | capstone_bitboard) & mask) * Magic::magic_hashes[square_idx];
+
+	hash >>= (uint64_t)(64U - BITS_PER_INDEX); // reduce to BITS_PER_INDEX bits
+	magic_table_entry_t entry = Magic::magic_table[square_idx][hash];
+
+	return SpreadIterator(square_idx, height, entry, wall_bitboard);
 }
 
-SpreadIterator::SpreadIterator(int start_square, int height, magic_table_entry_t entry) :
+SpreadIterator::SpreadIterator(int start_square, int height, magic_table_entry_t entry, bitboard_t wall_bitboard) :
 	start_square(start_square),
-	max_height(height > 6 ? 6 : height),
+	max_perm(1U << (height > 6 ? 6 : height)),
 	distances(entry),
 	current_direction(0),
-	current_perm(1),
-	cleared(false)
+	current_perm(0),
+	cleared(false),
+	can_smash(wall_bitboard != 0),
+	wall_bitboard(wall_bitboard)
 {
 	_forward();
 }
 
 // TODO is this cheaper than fetching from a pre-generated permutation table?
 void SpreadIterator::_forward() {
-	uint32_t max_perm = 1 << max_height;
+	// check for smash
+	if (can_smash && !(current_perm & 0b1U) // only if has reach
+		) {
+		auto dist = 1U + std::popcount(current_perm);
+		bitboard_t smash_square_bitboard = 1ULL << (start_square + dist * TakBoard::offsets[current_direction]);
+		if (smash_square_bitboard & wall_bitboard) { // check if next square is blocker
+			current_perm++;
+			return;
+		}
+	}
+	current_perm++;
 	while (current_direction < 4) {
 		if (current_perm >= max_perm) {
 			current_direction++;
@@ -226,7 +246,7 @@ bool SpreadIterator::has_next() const {
 }
 
 move_t SpreadIterator::next() {
-	move_t move = { (uint8_t) (start_square | (current_direction << 6U)), (uint8_t) current_perm++ };
+	move_t move = { (uint8_t) (start_square | (current_direction << 6U)), (uint8_t) current_perm };
 	_forward();
 	return move;
 }

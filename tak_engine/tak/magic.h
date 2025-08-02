@@ -19,7 +19,7 @@ struct magic_table_entry_t {
 // spread iterator
 class SpreadIterator {
 public:
-	SpreadIterator(int start_square, int height, magic_table_entry_t entry);
+	SpreadIterator(int start_square, int height, magic_table_entry_t entry, bitboard_t wall_bitboard);
 	move_t next();
 	void clear();
 	bool is_empty() const;
@@ -28,10 +28,13 @@ private:
 	void _forward();
 
 	magic_table_entry_t distances; // magic lists for each direction (up, right, down, left)
-	uint16_t current_perm; // current permutation
 	uint8_t start_square; // starting square index for the spread
-	uint8_t max_height;
+	uint8_t max_perm;
 	uint8_t square_and_type; // square index and type of the piece being spread
+	bool can_smash;
+	bitboard_t wall_bitboard;
+
+	uint16_t current_perm; // current permutation
 	uint8_t current_direction; // current direction of the spread
 
 	bool cleared; // flag to check if the iterator has been cleared
