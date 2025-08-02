@@ -42,3 +42,8 @@ bool MoveList::is_empty() const
 {
 	return move_count == 0;
 }
+
+void MoveList::reset()
+{
+	current_index = 0;
+}

@@ -14,6 +14,7 @@ public:
 	// base class methods
 	move_t next();
 	void clear();
+	void reset();
 	bool is_empty() const;
 	bool has_next() const;
 

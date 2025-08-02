@@ -1,9 +1,11 @@
 #include "magic.h"
+#include "bitboard.h"
 
 #include <bit>
 #include <iostream>
 #include <vector>
 
+// TODO should be done at compile time for slightly faster startup
 static std::array<uint64_t, 64> generate_magics()
 {
 	std::array<uint64_t, 64> magics = {};
@@ -13,24 +15,24 @@ static std::array<uint64_t, 64> generate_magics()
 
 	for (int row = 0; row < 6; row++) {
 		for (int col = 0; col < 6; col++) {
-			int square_idx = (row + 1) * 8 + col; // 6x6 board, 8x8 indexing for padded bitboards
+			int square_idx = row * 8 + col; // 6x6 board, 8x8 indexing for padded bitboards
 			uint64_t current_attempt = 0; // current attempt counter
 
 			uint64_t collision_table[1 << BITS_PER_INDEX] = { 0 }; // collision table for magic hashes
 
 			// generate all possible bitboards!
-			std::vector<uint64_t> bitboards = {};
+			std::vector<bitboard_t> bitboards = {};
 			for (uint8_t row_bitboard = 0; row_bitboard < (1 << 6); row_bitboard++) {
 				for (uint8_t col_bitboard = 0; col_bitboard < (1 << 6); col_bitboard++) {
-					uint64_t blocker_bitboard = 0;
+					bitboard_t blocker_bitboard = 0;
 					for (int r = 0; r < 6; r++) {
 						if (row_bitboard & (1ULL << r)) {
-							blocker_bitboard |= (1ULL << ((r + 1) * 8 + col)); // set row blocker
+							blocker_bitboard |= (1ULL << (r * 8 + col)); // set row blocker
 						}
 					}
 					for (int c = 0; c < 6; c++) {
 						if (col_bitboard & (1ULL << c)) {
-							blocker_bitboard |= (1ULL << ((row + 1) * 8 + c)); // set column blocker
+							blocker_bitboard |= (1ULL << (row * 8 + c)); // set column blocker
 						}
 					}
 
@@ -56,8 +58,8 @@ static std::array<uint64_t, 64> generate_magics()
 				magic_hash &= ConstRandom::next(&rand);
 				magic_hash &= ConstRandom::next(&rand);
 
-				for (uint64_t blocker_bitboard : bitboards) {
-					uint64_t hash = blocker_bitboard * magic_hash;
+				for (bitboard_t blocker_bitboard : bitboards) {
+					bitboard_t hash = blocker_bitboard * magic_hash;
 					hash >>= (64 - BITS_PER_INDEX); // reduce to BITS_PER_INDEX bits
 
 					// check if this hash is already in use
@@ -93,55 +95,74 @@ void Magic::init() {
 
 	// initialize magic table
 	for (int row = 0; row < 6; row++) {
-		int row_idx = (row + 1) * 8; // 6x6 board, 8x8 indexing for padded bitboards
+		int row_idx = row * 8; // 6x6 board, 8x8 indexing for padded bitboards
 		for (int col = 0; col < 6; col++) {
 			int square_idx = row_idx + col; // calculate square index
 
 			for (uint8_t row_bitboard = 0; row_bitboard < (1 << 6); row_bitboard++) {
 				for (uint8_t col_bitboard = 0; col_bitboard < (1 << 6); col_bitboard++) {
-					uint64_t blocker_bitboard = 0;
+					bitboard_t blocker_bitboard = 0;
 					for (int r = 0; r < 6; r++) {
 						if (row_bitboard & (1ULL << r)) {
-							blocker_bitboard |= (1ULL << ((r + 1) * 8 + col)); // set row blocker
+							blocker_bitboard |= (1ULL << (r * 8 + col)); // set row blocker
 						}
 					}
 					for (int c = 0; c < 6; c++) {
 						if (col_bitboard & (1ULL << c)) {
-							blocker_bitboard |= (1ULL << ((row + 1) * 8 + c)); // set column blocker
+							blocker_bitboard |= (1ULL << (row * 8 + c)); // set column blocker
 						}
 					}
 
+					if (blocker_bitboard & (1ULL << square_idx))
+						continue;
+
 					// calculate magic table index
-					uint64_t mask = Magic::magic_masks[square_idx];
+					bitboard_t mask = Magic::magic_masks[square_idx];
 					uint64_t hash = (blocker_bitboard & mask) * Magic::magic_hashes[square_idx];
 
 					// calculate maximum distances for each direction
-					int max_distances[4] = { 0, 0, 0, 0 }; // up, right, down, left
+					uint8_t max_distances[4] = { 0, 0, 0, 0 }; // up, right, down, left
+					uint8_t max_dist = 0;
 
-					// top
-					uint8_t top_blockers = col_bitboard & (0b111111U << row);
+					// up
+					uint8_t top_blockers = (col_bitboard & (0b111111U << row)) >> (row + 1);
 					// count trailing zeros in top_blockers to find maximum distance upwards
-					max_distances[0] = 6 - row - std::countr_zero(top_blockers); // up
-
-					// right
-					uint8_t right_blockers = row_bitboard & (0b111111U << col);
-					// count trailing zeros in right_blockers to find maximum distance to the right
-					max_distances[1] = 6 - col - std::countr_zero(right_blockers); // right
+					max_dist = std::countr_zero(top_blockers);
+					uint8_t up_distance = 5 - row;
+					if (max_dist < up_distance)
+						up_distance = max_dist;
+					max_distances[0] = up_distance;
 
 					// bottom
-					uint8_t bottom_blockers = col_bitboard & (0b111111U >> (5 - row));
-					// count leading zeros in bottom_blockers to find maximum distance downwards
-					max_distances[2] = row - std::countl_zero(bottom_blockers); // down
+					uint8_t bottom_blockers = (col_bitboard & (0b111111U >> row)) << (row + 3);
+					// count leading zeros to find maximum distance downwards
+					max_dist = std::countl_zero(bottom_blockers);
+					uint8_t down_distance = row;
+					if (max_dist < down_distance)
+						down_distance = max_dist;
+					max_distances[2] = down_distance;
+
+					// right
+					uint8_t right_blockers = (row_bitboard & (0b111111U << col)) >> (col + 1);
+					// count trailing zeros to find maximum distance to right
+					max_dist = std::countr_zero(right_blockers);
+					uint8_t right_distance = 5 - col;
+					if (max_dist < right_distance)
+						right_distance = max_dist;
+					max_distances[1] = right_distance;
 
 					// left
-					uint8_t left_blockers = row_bitboard & (0b111111U >> (5 - col));
-					// count leading zeros in left_blockers to find maximum distance to the left
-					max_distances[3] = col - std::countl_zero(left_blockers); // left
+					uint8_t left_blockers = (row_bitboard & (0b111111U >> col)) << (col + 3);
+					// count leading zeros to find maximum distance to left
+					max_dist = std::countl_zero(left_blockers);
+					uint8_t left_distance = col;
+					if (max_dist < left_distance)
+						left_distance = max_dist;
+					max_distances[3] = left_distance;
 
 					hash >>= (uint64_t)(64U - BITS_PER_INDEX); // reduce to BITS_PER_INDEX bits
-					auto entry = Magic::magic_table[square_idx][hash].distances;
 					for (int direction = 0; direction < 4; direction++) {
-						entry[direction] = (uint8_t) max_distances[direction];
+						Magic::magic_table[square_idx][hash].distances[direction] = (uint8_t) max_distances[direction];
 					}
 				}
 			}
@@ -151,11 +172,11 @@ void Magic::init() {
 	is_initialized = true;
 }
 
-SpreadIterator Magic::get_spread_iterator(int square_idx, uint64_t blocker_bitboard, int height)
+SpreadIterator Magic::get_spread_iterator(int square_idx, bitboard_t blocker_bitboard, int height)
 {
 	if (height > 6)
 		height = 6;
-	uint64_t mask = Magic::magic_masks[square_idx];
+	bitboard_t mask = Magic::magic_masks[square_idx];
 	uint64_t hash = (blocker_bitboard & mask) * Magic::magic_hashes[square_idx];
 
 	hash >>= (uint64_t)( 64U - BITS_PER_INDEX); // reduce to BITS_PER_INDEX bits
@@ -164,7 +185,7 @@ SpreadIterator Magic::get_spread_iterator(int square_idx, uint64_t blocker_bitbo
 	return SpreadIterator(square_idx, height, entry);
 }
 
-SpreadIterator Magic::get_capstone_iterator(int square_idx, uint64_t wall_bitboard, uint64_t capstone_bitboard, int height)
+SpreadIterator Magic::get_capstone_iterator(int square_idx, bitboard_t wall_bitboard, bitboard_t capstone_bitboard, int height)
 {
 	// TODO implement capstone iterator creation
 	return SpreadIterator(0, 0, Magic::magic_table[0][0]);

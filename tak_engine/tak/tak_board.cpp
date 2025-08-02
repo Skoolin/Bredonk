@@ -34,6 +34,7 @@ TakBoard::TakBoard() :
 		0ULL  // B_CAP
 	}
 {
+	Magic::init();
 	for (int i = 0; i < MAX_GAME_LENGTH; i++)
 		move_lists[i] = nullptr;
 }
@@ -43,38 +44,79 @@ TakBoard::~TakBoard()
 	// clean up move lists
 	for (int i = 0; i < MAX_GAME_LENGTH; i++) {
 		if (move_lists[i] != nullptr) {
-			// TODO why does this error?
 			delete move_lists[i];
 			move_lists[i] = nullptr;
 		}
 	}
 }
 
+std::string TakBoard::get_tps() const
+{
+	std::string tps = "";
+
+	for (int row = 0; row < 6; row++) {
+		int x_count = 0;
+		for (int col = 0; col < 6; col++) {
+			x_count = 0;
+			int square_idx = 8 * row + col;
+			if (stack_sizes[square_idx]) {
+				if (x_count > 1)
+					tps.append("0" + x_count);
+				x_count = 0;
+				auto stack = stacks[square_idx];
+				for (int i = 0; i < stack_sizes[square_idx] - 1; i++)
+					tps.append(stack[i].get_player() == -1 ? "2" : "1");
+				auto top_stone = top_stones[square_idx];
+				tps.append(top_stone.get_player() == -1 ? "2" : "1");
+				if (top_stone.is_capstone())
+					tps.append("C");
+				if (top_stone.is_wall())
+					tps.append("S");
+			} else {
+				if (x_count)
+					x_count++;
+				else {
+					x_count = 1;
+					tps.append("x");
+				}
+			}
+		}
+		if (x_count > 1)
+			tps.append("0" + x_count);
+		if (row < 5)
+			tps.append("/");
+	}
+
+	return tps;
+}
+
 /*
 * flood fill search on bit mask
+* TODO move to bitboard.h, check border masks, make faster
 */
-static bool has_road(uint64_t bitmap) {
+static bool has_road(bitboard_t bitmap) {
 	// bordered layout: (1 = board, 0 = border)
+	// This helps with flood fill!
 	// 00000000
-	// 11111100
-	// 11111100
-	// 11111100
-	// 11111100
-	// 11111100
-	// 11111100
 	// 00000000
+	// 00111111
+	// 00111111
+	// 00111111
+	// 00111111
+	// 00111111
+	// 00111111
 
 	// TODO early stopping if road already found even if floodfill incomplete
 	// TODO test loop unrolling
 
-	const uint64_t LEFT = 0b000000001000000010000000100000001000000010000000100000000000000000000000;
-	const uint64_t RIGHT = 0b000000000000000100000001000000010000000100000001000000010000000000000000;
-	const uint64_t TOP = 0b000000001111110000000000000000000000000000000000000000000000000000000000;
-	const uint64_t BOTTOM = 0b000000000000000000000000000000000000000000000000000000001111110000000000;
+	const bitboard_t LEFT = 0b000000000000000000100000001000000010000000100000001000000010000000000000ULL;
+	const bitboard_t RIGHT = 0b000000000000000000000000010000000100000001000000010000000100000001000000ULL;
+	const bitboard_t TOP = 0b000000000000000000111111000000000000000000000000000000000000000000000000ULL;
+	const bitboard_t BOTTOM = 0b000000000000000000000000000000000000000000000000000000000000000000111111ULL;
 
 	// search left to right
-	uint64_t fill_map = 0;
-	uint64_t step_map = LEFT & bitmap;
+	bitboard_t fill_map = 0;
+	bitboard_t step_map = LEFT & bitmap;
 	while (step_map != fill_map) {
 		fill_map = step_map;
 		step_map = (fill_map | fill_map << 1 | fill_map >> 1 | fill_map << 8 | fill_map >> 8) & bitmap;
@@ -104,13 +146,13 @@ bool TakBoard::is_final() const
 		return true;
 
 	// check board fill
-	uint64_t empty_bitmap = get_bordered_bitboard(Piece::NONE);
+	bitboard_t empty_bitmap = get_bordered_bitboard(Piece::NONE);
 	if (empty_bitmap == 0)
 		return true;
 
 	// check for roads
-	uint64_t w_bitmap = get_bordered_bitboard(Piece::W_CAP) | get_bordered_bitboard(Piece::W_FLAT);
-	uint64_t b_bitmap = get_bordered_bitboard(Piece::B_CAP) | get_bordered_bitboard(Piece::B_FLAT);
+	bitboard_t w_bitmap = get_bordered_bitboard(Piece::W_CAP) | get_bordered_bitboard(Piece::W_FLAT);
+	bitboard_t b_bitmap = get_bordered_bitboard(Piece::B_CAP) | get_bordered_bitboard(Piece::B_FLAT);
 	
 	if (has_road(w_bitmap))
 		return true;
@@ -123,8 +165,8 @@ int32_t TakBoard::get_result() const
 		return STATE_ONGOING;
 
 	// check for roads
-	uint64_t w_bitmap = get_bordered_bitboard(Piece::W_CAP) | get_bordered_bitboard(Piece::W_FLAT);
-	uint64_t b_bitmap = get_bordered_bitboard(Piece::B_CAP) | get_bordered_bitboard(Piece::B_FLAT);
+	bitboard_t w_bitmap = get_bordered_bitboard(Piece::W_CAP) | get_bordered_bitboard(Piece::W_FLAT);
+	bitboard_t b_bitmap = get_bordered_bitboard(Piece::B_CAP) | get_bordered_bitboard(Piece::B_FLAT);
 
 	// TODO don't repeat has_road check, already done in is_final()
 	bool w_road = has_road(w_bitmap);
@@ -140,8 +182,8 @@ int32_t TakBoard::get_result() const
 	if (b_road)
 		return STATE_BLACK_WIN;
 
-	int w_count = std::popcount(get_bordered_bitboard(Piece::W_FLAT));
-	int b_count = std::popcount(get_bordered_bitboard(Piece::B_FLAT));
+	int w_count = get_bordered_bitboard(Piece::W_FLAT).count();
+	int b_count = get_bordered_bitboard(Piece::B_FLAT).count();
 
 	if (w_count > b_count)
 		return STATE_WHITE_WIN;
@@ -152,7 +194,7 @@ int32_t TakBoard::get_result() const
 }
 
 // returns zobrist hash of the current board state
-uint32_t TakBoard::get_hash()
+uint64_t TakBoard::get_hash()
 {
 	// TODO implement zobrist
 	return 0;
@@ -394,13 +436,16 @@ MoveList* TakBoard::get_legal_moves()
 
 	// TODO partial move generation
 	if (move_iter->is_empty()) {
-		generate_moves(move_iter); // TODO this assumes that the move_iter is a MoveList!
+		generate_moves(move_iter);
+	}
+	else if (!move_iter->has_next()) {
+		move_iter->reset();
 	}
 
 	return move_iter;
 }
 
-uint64_t TakBoard::get_bordered_bitboard(Piece type) const
+bitboard_t TakBoard::get_bordered_bitboard(Piece type) const
 {
 	return bordered_bitboards[type.to_int()] & BORDER_MASK;
 }
@@ -409,7 +454,7 @@ void TakBoard::generate_moves(MoveList* move_list)
 {
 	for (int row = 0; row < 6; row++)
 		for (int col = 0; col < 6; col++) {
-			int square_idx = (1+row) * 8 + col; // 6x6 board, 8x8 indexing for padded bitboards
+			int square_idx = row * 8 + col; // 6x6 board, 8x8 indexing for padded bitboards
 
 			if (top_stones[square_idx] == Piece::NONE) { // add placements
 				int reserves = (current_player == PLAYER_WHITE) ? w_reserves : b_reserves;
@@ -429,7 +474,7 @@ void TakBoard::generate_moves(MoveList* move_list)
 				bool is_capstone = top_stones[square_idx].is_capstone();
 				int stack_size = stack_sizes[square_idx];
 
-				uint64_t blockers = get_bordered_bitboard(Piece::W_WALL) | get_bordered_bitboard(Piece::B_WALL)
+				bitboard_t blockers = get_bordered_bitboard(Piece::W_WALL) | get_bordered_bitboard(Piece::B_WALL)
 					| get_bordered_bitboard(Piece::W_CAP) | get_bordered_bitboard(Piece::B_CAP);
 				blockers &= ~(1ULL << square_idx);
 
@@ -442,8 +487,8 @@ void TakBoard::generate_moves(MoveList* move_list)
 
 				// TODO
 				if (false && is_capstone) { // add capstone smash moves
-					uint64_t walls = get_bordered_bitboard(Piece::W_WALL) | get_bordered_bitboard(Piece::B_WALL);
-					uint64_t capstones = get_bordered_bitboard(Piece::W_CAP) | get_bordered_bitboard(Piece::B_CAP);
+					bitboard_t walls = get_bordered_bitboard(Piece::W_WALL) | get_bordered_bitboard(Piece::B_WALL);
+					bitboard_t capstones = get_bordered_bitboard(Piece::W_CAP) | get_bordered_bitboard(Piece::B_CAP);
 
 					SpreadIterator capstone_iter = Magic::get_capstone_iterator(square_idx, capstones, walls, stack_size);
 

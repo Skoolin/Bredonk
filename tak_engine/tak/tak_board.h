@@ -6,6 +6,7 @@
 #include "move_iterator.h"
 #include "move_list.h"
 #include "piece.h"
+#include "bitboard.h"
 
 #pragma once
 
@@ -26,19 +27,21 @@ public:
 	TakBoard();
 	~TakBoard();
 
+	std::string get_tps() const;
+
 	bool is_final() const;
 	int32_t get_result() const; // 0 if draw, 1 if white wins, -1 if black wins
 
-	uint32_t get_hash();
+	uint64_t get_hash();
 
 	void make_move(move_t m);
 	void undo_move(move_t m);
 	bool is_legal(move_t m);
 	MoveList* get_legal_moves();
 
-	uint64_t get_bordered_bitboard(Piece type) const;
+	bitboard_t get_bordered_bitboard(Piece type) const;
 
-	static const uint64_t BORDER_MASK = 0x00FDFDFDFDFDFD00ULL; // bordered layout: (1 = board, 0 = border)
+	static constexpr bitboard_t BORDER_MASK = 0x00FDFDFDFDFDFD00ULL; // bordered layout: (1 = board, 0 = border)
 
 private:
 	void generate_moves(MoveList* move_list);
@@ -59,5 +62,5 @@ private:
 	Piece top_stones[64];
 	uint8_t stack_sizes[64];
 	Piece stacks[64][MAX_STACK_HEIGHT];
-	uint64_t bordered_bitboards[8]; // NONE, W_FLAT, W_WALL, W_CAP, __ILLEGAL__, B_FLAT, B_WALL, B_CAP
+	bitboard_t bordered_bitboards[8]; // NONE, W_FLAT, W_WALL, W_CAP, __ILLEGAL__, B_FLAT, B_WALL, B_CAP
 };

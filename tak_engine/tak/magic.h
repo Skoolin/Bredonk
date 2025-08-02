@@ -1,7 +1,9 @@
 #pragma once
 
-#include "move_iterator.h"
 #include <array>
+
+#include "move_iterator.h"
+#include "bitboard.h"
 #include "../util/random.h"
 
 constexpr uint32_t BITS_PER_INDEX = 10; // bits for indexing magic table entries
@@ -35,16 +37,18 @@ private:
 	bool cleared; // flag to check if the iterator has been cleared
 };
 
-constexpr std::array<uint64_t, 64> generate_square_masks()
+constexpr std::array<bitboard_t, 64> generate_square_masks()
 {
-	std::array<uint64_t, 64> masks = {};
+	std::array<bitboard_t, 64> masks = {};
 
 	for (int row = 0; row < 6; row++) {
 		for (int column = 0; column < 6; column++) {
-			int square_idx = (row + 1) * 8 + column; // 6x6 board, 8x8 indexing for padded bitboards
+			int square_idx = row * 8 + column; // 6x6 board, 8x8 indexing for padded bitboards
 
 			// create the magic mask for this square
-			masks[square_idx] = (0x000000000000007FULL << ((1+row) * 8)) | (0x0001010101010100ULL << column);
+			bitboard_t mask = (0x000000000000007FULL << (row * 8)) | (0x0000010101010101ULL << column);
+			mask &= ~(1ULL << square_idx);
+			masks[square_idx] = mask;
 		}
 	}
 
@@ -56,11 +60,11 @@ class Magic {
 public:
 	static void init();
 
-	static SpreadIterator get_spread_iterator(int square_idx, uint64_t blocker_bitboard, int height);
-	static SpreadIterator get_capstone_iterator(int square_idx, uint64_t wall_bitboard, uint64_t capstone_bitboard, int height);
+	static SpreadIterator get_spread_iterator(int square_idx, bitboard_t blocker_bitboard, int height);
+	static SpreadIterator get_capstone_iterator(int square_idx, bitboard_t wall_bitboard, bitboard_t capstone_bitboard, int height);
 
 private:
-	static constexpr std::array<uint64_t, 64> magic_masks = generate_square_masks(); // masks for each square, used for fast lookup in the magic table
+	static constexpr std::array<bitboard_t, 64> magic_masks = generate_square_masks(); // masks for each square, used for fast lookup in the magic table
 	static std::array<uint64_t, 64> magic_hashes; // precomputed magic numbers for multiplication with blocker bitboards
 
 	static bool is_initialized; // flag to check if the magic bitboard is initialized
