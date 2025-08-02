@@ -11,9 +11,9 @@
 #pragma once
 
 static const int offsets[4] = {
-	-8, // up
+	+8, // up
 	+1, // right
-	+8, // down
+	-8, // down
 	-1, // left
 };
 

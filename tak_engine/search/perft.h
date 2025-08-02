@@ -20,11 +20,25 @@ uint64_t perft(TakBoard* board, int depth, bool verbose = false) {
 		std::cout << "tps: " << board->get_tps() << std::endl;
 
 	while (moves->has_next()) {
+//		auto tps_before_make = board->get_tps();
 		move_t move = moves->next();
 		board->make_move(move);
+//		auto tps_before_perft = board->get_tps();
 		auto perft_nodes = perft(board, depth - 1);
+//		auto tps_after_perft = board->get_tps();
 		nodes += perft_nodes;
 		board->undo_move(move);
+//		auto tps_after_undo = board->get_tps();
+//		if (tps_before_make != tps_after_undo) {
+//			std::cout << "ERROR: make/undo move changed tps!!" << std::endl;
+//			std::cout << ">> tps before make:  " << tps_before_make << std::endl;
+//			std::cout << ">> tps before perft: " << tps_before_perft << std::endl;
+//			std::cout << ">> tps after perft:  " << tps_after_perft << std::endl;
+//			std::cout << ">> tps after undo:   " << tps_after_undo << std::endl;
+//			std::cout << ">> move: " << move.get_ptn() << ", depth: " << depth << std::endl;
+//			std::cout << ">> dir: " << move.spread_direction() << ", perm: " << (unsigned int)move.spread_perm << std::endl;;
+//			break;
+//		}
 		if (verbose) {
 			std::cout << "move " << move.get_ptn() << ": " << perft_nodes << std::endl;
 		}

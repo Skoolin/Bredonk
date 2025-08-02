@@ -55,14 +55,9 @@ std::string TakBoard::get_tps() const
 	std::string tps = "";
 
 	for (int row = 0; row < 6; row++) {
-		int x_count = 0;
 		for (int col = 0; col < 6; col++) {
-			x_count = 0;
 			int square_idx = 8 * row + col;
 			if (stack_sizes[square_idx]) {
-				if (x_count > 1)
-					tps.append("0" + x_count);
-				x_count = 0;
 				auto stack = stacks[square_idx];
 				for (int i = 0; i < stack_sizes[square_idx] - 1; i++)
 					tps.append(stack[i].get_player() == -1 ? "2" : "1");
@@ -73,16 +68,9 @@ std::string TakBoard::get_tps() const
 				if (top_stone.is_wall())
 					tps.append("S");
 			} else {
-				if (x_count)
-					x_count++;
-				else {
-					x_count = 1;
-					tps.append("x");
-				}
+				tps.append("x");
 			}
 		}
-		if (x_count > 1)
-			tps.append("0" + x_count);
 		if (row < 5)
 			tps.append("/");
 	}
@@ -382,7 +370,7 @@ void TakBoard::undo_move(move_t m)
 		}
 		bordered_bitboards[top_stones[start_square].to_int()] &= ~(1ULL << start_square); // remove top stone from bitboard
 		for (int i = 0; i < pieces_to_put_back; i++) {
-			stacks[start_square][stack_sizes[start_square] + i + 1] = stones[i];
+			stacks[start_square][stack_sizes[start_square] + i] = stones[i];
 		}
 		stack_sizes[start_square] += pieces_to_put_back;
 		// adjust top stone
