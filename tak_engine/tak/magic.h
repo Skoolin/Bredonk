@@ -49,7 +49,7 @@ constexpr std::array<bitboard_t, 64> generate_square_masks()
 			int square_idx = row * 8 + column; // 6x6 board, 8x8 indexing for padded bitboards
 
 			// create the magic mask for this square
-			bitboard_t mask = (0x000000000000007FULL << (row * 8)) | (0x0000010101010101ULL << column);
+			bitboard_t mask = (0x000000000000003FULL << (row * 8)) | (0x0000010101010101ULL << column);
 			mask &= ~(1ULL << square_idx);
 			masks[square_idx] = mask;
 		}
@@ -63,8 +63,7 @@ class Magic {
 public:
 	static void init();
 
-	static SpreadIterator get_spread_iterator(int square_idx, bitboard_t blocker_bitboard, int height);
-	static SpreadIterator get_capstone_iterator(int square_idx, bitboard_t wall_bitboard, bitboard_t capstone_bitboard, int height);
+	static SpreadIterator get_spread_iterator(int square_idx, bitboard_t wall_bitboard, bitboard_t capstone_bitboard, int height);
 
 private:
 	static constexpr std::array<bitboard_t, 64> magic_masks = generate_square_masks(); // masks for each square, used for fast lookup in the magic table

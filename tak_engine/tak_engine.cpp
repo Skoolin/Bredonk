@@ -7,12 +7,19 @@
 
 #include "tak/magic.h"
 
-int main()
+int start()
 {
-	int depth = 4;
+	run_perft(5);
+	return 0;
+}
+
+int from_pos()
+{
+	int depth = 2;
 	TakBoard* board;
 
-	move_t moves[] = { move_t::from_ptn("a1"), move_t::from_ptn("f6") };
+//	move_t moves[] = { move_t::from_ptn("a1"), move_t::from_ptn("f6"), { (uint8_t)((2U << 6) | 45U), 0b00000001U }};
+	move_t moves[] = { move_t::from_ptn("b3"), move_t::from_ptn("a2"), move_t::from_ptn("Ca1") };
 
 	// Reset the board to the initial state
 	board = new TakBoard();
@@ -36,4 +43,9 @@ int main()
 	delete board;
 
 	return 0;
+}
+
+int main() {
+	//from_pos();
+    start();
 }

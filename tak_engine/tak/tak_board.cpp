@@ -4,6 +4,7 @@
 #include "enums.h"
 #include "magic.h"
 #include <iostream>
+#include <string>
 
 TakBoard::TakBoard() :
 	top_stones{ Piece::NONE },
@@ -56,7 +57,8 @@ std::string TakBoard::get_tps() const
 
 	for (int row = 0; row < 6; row++) {
 		for (int col = 0; col < 6; col++) {
-			int square_idx = 8 * row + col;
+			int tps_col = 5 - col;
+			int square_idx = 8 * row + tps_col;
 			if (stack_sizes[square_idx]) {
 				auto stack = stacks[square_idx];
 				for (int i = 0; i < stack_sizes[square_idx] - 1; i++)
@@ -70,10 +72,15 @@ std::string TakBoard::get_tps() const
 			} else {
 				tps.append("x");
 			}
+			if (col < 5)
+				tps.append(",");
 		}
 		if (row < 5)
 			tps.append("/");
 	}
+
+	tps.append(current_player == 1 ? " 1 " : " 2 ");
+	tps.append(std::to_string(move_count/2+1));
 
 	return tps;
 }
@@ -197,9 +204,6 @@ static int32_t get_player(Piece p) {
 
 void TakBoard::make_move(move_t m)
 {
-	//previous_moves[move_count] = m;
-	move_count++;
-
 	// TODO update zobrist
 
 	if (m.is_spread()) { // spread move
@@ -250,12 +254,12 @@ void TakBoard::make_move(move_t m)
 
 			bordered_bitboards[top_stones[current_square].to_int()] &= ~(1ULL << current_square); // remove top stone from bitboard
 
-			if (perm & 0b10000000) { // move to next square
+			if (perm & 0b10000000U) { // move to next square
 				current_square += square_offset;
 				// smash top wall
 				if (stone == Piece::W_CAP || stone == Piece::B_CAP) {
 					if (top_stones[current_square].is_wall()) {
-						did_flatten[move_count - 1] = true;
+						did_flatten[move_count] = true;
 						if (top_stones[current_square] == Piece::B_WALL) {
 							top_stones[current_square] = Piece::B_FLAT;
 						}
@@ -264,7 +268,7 @@ void TakBoard::make_move(move_t m)
 						}
 					}
 					else {
-						did_flatten[move_count - 1] = false;
+						did_flatten[move_count] = false;
 					}
 				}
 			}
@@ -279,7 +283,7 @@ void TakBoard::make_move(move_t m)
 	}
 	else { // placement move
 		int square = m.square_idx();
-		Piece p = m.piece_type(is_swap ? 1-current_player: current_player);
+		Piece p = m.piece_type(is_swap() ? (0 - current_player) : current_player);
 
 		top_stones[square] = p;
 		bordered_bitboards[((Piece)Piece::NONE).to_int()] &= ~(1ULL << square); // remove empty square from bitboard
@@ -293,6 +297,7 @@ void TakBoard::make_move(move_t m)
 			else
 				b_cap_placed = true;
 		}
+		// incorrect for first move but correct after
 		else {
 			if (current_player == 1) // white
 				w_reserves--;
@@ -302,6 +307,7 @@ void TakBoard::make_move(move_t m)
 	}
 
 	current_player = -current_player;
+	move_count++;
 }
 
 void TakBoard::undo_move(move_t m)
@@ -321,7 +327,6 @@ void TakBoard::undo_move(move_t m)
 		uint8_t perm = m.spread_perm;
 		int leading_zeros = std::countl_zero(perm); // count trailing zeros in spread_perm
 		int pieces_to_put_back = 8 - leading_zeros; // 8 is the max number of pieces in a move representation
-		perm <<= leading_zeros; // remove trailing zeros from perm
 
 		// TODO this can be done directly on the square stack!
 		Piece stones[8]{ Piece::NONE };
@@ -344,7 +349,7 @@ void TakBoard::undo_move(move_t m)
 				top_stones[current_square] = Piece::NONE;
 				bordered_bitboards[((Piece)Piece::NONE).to_int()] |= (1ULL << current_square); // add empty square to bitboard
 			}
-			if (perm & 0b10000000) {
+			if (perm & 0b1U) {
 				// undo flatten
 				if (is_last_square && stone.is_capstone() && did_flatten[move_count]) {
 					Piece top_stone = top_stones[current_square];
@@ -362,7 +367,7 @@ void TakBoard::undo_move(move_t m)
 				current_square -= square_offset;
 				is_last_square = false;
 			}
-			perm <<= 1; // shift to next stone
+			perm >>= 1; // shift to next stone
 		}
 
 		// put back stones
@@ -394,6 +399,7 @@ void TakBoard::undo_move(move_t m)
 			else
 				b_cap_placed = false;
 		}
+		// inaccurate for first move, but correct after
 		else {
 			if (current_player == 1) // white
 				w_reserves++;
@@ -446,8 +452,8 @@ bitboard_t TakBoard::get_bordered_bitboard(Piece type) const
 
 void TakBoard::generate_moves(MoveList* move_list)
 {
-	for (int row = 0; row < 6; row++)
-		for (int col = 0; col < 6; col++) {
+	for (int col = 0; col < 6; col++) {
+		for (int row = 0; row < 6; row++) {
 			int square_idx = row * 8 + col; // 6x6 board, 8x8 indexing for padded bitboards
 
 			if (top_stones[square_idx] == Piece::NONE) { // add placements
@@ -456,41 +462,30 @@ void TakBoard::generate_moves(MoveList* move_list)
 
 				if (reserves > 0) { // can place a flat/wall
 					// flat placement
-					move_list->add_move({ (uint8_t)((square_idx & 0b00111111) | (1 << 6)), 0 }); // flat
-					if (!is_swap)
-					// wall placement
-					move_list->add_move({ (uint8_t)((square_idx & 0b00111111) | (2 << 6)), 0} ); // wall
+					move_list->add_move({ (uint8_t)((square_idx & 0b00111111U) | (1 << 6)), 0 }); // flat
+					// wall_placement
+					if (!is_swap()) {
+						move_list->add_move({ (uint8_t)((square_idx & 0b00111111U) | (2 << 6)), 0 }); // wall
+					}
 				}
-				if (!is_swap && !capstone_placed) { // can place a capstone
-					move_list->add_move({ (uint8_t)((square_idx & 0b00111111) | (3 << 6)), 0 }); // capstone
+				if (!is_swap() && !capstone_placed) { // can place a capstone
+					move_list->add_move({ (uint8_t)((square_idx & 0b00111111U) | (3 << 6)), 0 }); // capstone
 				}
 			}
-			else if (top_stones[square_idx].get_player() == current_player) { // add spreads
+			else if (!is_swap() && top_stones[square_idx].get_player() == current_player) { // add spreads
 				bool is_capstone = top_stones[square_idx].is_capstone();
 				int stack_size = stack_sizes[square_idx];
 
-				bitboard_t blockers = get_bordered_bitboard(Piece::W_WALL) | get_bordered_bitboard(Piece::B_WALL)
-					| get_bordered_bitboard(Piece::W_CAP) | get_bordered_bitboard(Piece::B_CAP);
-				blockers &= ~(1ULL << square_idx);
+				bitboard_t walls = get_bordered_bitboard(Piece::W_WALL) | get_bordered_bitboard(Piece::B_WALL);
+				bitboard_t capstones = get_bordered_bitboard(Piece::W_CAP) | get_bordered_bitboard(Piece::B_CAP);
 
-				SpreadIterator spread_iter = Magic::get_spread_iterator(square_idx, blockers, stack_size);
+				SpreadIterator spread_iter = Magic::get_spread_iterator(square_idx, walls, capstones, stack_size);
 
 				// TODO add the iterator to the move list instead of copying all moves
 				while (spread_iter.has_next()) {
 					move_list->add_move(spread_iter.next());
 				}
-
-				// TODO
-				if (false && is_capstone) { // add capstone smash moves
-					bitboard_t walls = get_bordered_bitboard(Piece::W_WALL) | get_bordered_bitboard(Piece::B_WALL);
-					bitboard_t capstones = get_bordered_bitboard(Piece::W_CAP) | get_bordered_bitboard(Piece::B_CAP);
-
-					SpreadIterator capstone_iter = Magic::get_capstone_iterator(square_idx, capstones, walls, stack_size);
-
-					while (capstone_iter.has_next()) {
-						move_list->add_move(capstone_iter.next());
-					}
-				}
 			}
 		}
+	}
 }

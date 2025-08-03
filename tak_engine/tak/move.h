@@ -79,18 +79,23 @@ struct move_t {
             Piece type = piece_type(PLAYER_WHITE);
             std::string s = "";
             switch (type) {
-            case Piece::W_CAP: s.append("C"); break;
-            case Piece::W_WALL: s.append("S"); break;
+            case Piece::W_CAP: s = "C"; break;
+            case Piece::W_WALL: s = "S"; break;
             default: break;
             }
-            square_name += s;
-            return square_name;
+            return s + square_name;
         }
     }
 
     static move_t from_ptn(std::string ptn) {
-        uint8_t row = ptn[1] - '1';
+        if (ptn[0] == 'C' || ptn[0] == 'S') {
+            char c = ptn[0];
+            ptn[0] = ptn[1];
+            ptn[1] = ptn[2];
+            ptn[2] = c;
+        }
         uint8_t col = ptn[0] - 'a';
+        uint8_t row = ptn[1] - '1';
         uint8_t spread_perm = 0;
         uint8_t square_idx = 8U * row + col;
         if (ptn.length() == 2) {

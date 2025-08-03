@@ -35,7 +35,7 @@ public:
 
 	bitboard_t get_bordered_bitboard(Piece type) const;
 
-	static constexpr bitboard_t BORDER_MASK = 0x00FDFDFDFDFDFD00ULL; // bordered layout: (1 = board, 0 = border)
+	static constexpr bitboard_t BORDER_MASK = 0x00003F3F3F3F3F3FULL; // bordered layout: (1 = board, 0 = border)
 	static constexpr int offsets[4] = {
 		+8, // up
 		+1, // right
