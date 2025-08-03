@@ -200,6 +200,16 @@ SpreadIterator::SpreadIterator(int start_square, int height, magic_table_entry_t
 	_forward();
 }
 
+int SpreadIterator::count()
+{
+	int c = 0;
+	while (has_next()) {
+		next();
+		c++;
+	}
+	return c;
+}
+
 // TODO is this cheaper than fetching from a pre-generated permutation table?
 void SpreadIterator::_forward() {
 	while (current_direction < 4) {
@@ -215,7 +225,7 @@ void SpreadIterator::_forward() {
 		}
 		current_perm++;
 		_inner:
-		if (current_perm >= max_perm || current_perm >= (1U << distances[current_direction])) {
+		if (current_perm >= max_perm) {
 			current_direction++;
 			current_perm = 0;
 			continue;

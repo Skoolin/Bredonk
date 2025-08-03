@@ -1,8 +1,10 @@
 #pragma once
 
 #include "move_iterator.h"
+#include "magic.h"
 
-constexpr int MoveList_MAX_MOVES = 2001; // Maximum number of moves in a MoveList, coalesced for cache efficiency
+constexpr int MoveList_MAX_MOVES = 192; // Maximum number of moves in a MoveList
+constexpr int MoveList_MAX_SPREAD = 64;
 
 // MoveList is a concrete implementation of MoveIterator that stores a list of moves.
 class MoveList// : public MoveIterator
@@ -19,9 +21,13 @@ public:
 	bool has_next() const;
 
 	void add_move(move_t m);
-	uint32_t size() const;
+	void add_spread(SpreadIterator i);
+	uint32_t size();
 private:
+	SpreadIterator spreads[MoveList_MAX_SPREAD];
 	move_t moves[MoveList_MAX_MOVES];
-	uint32_t move_count;
-	uint32_t current_index;
+	uint8_t move_count;
+	uint8_t current_index;
+	uint8_t spread_count;
+	bool placement_done;
 };

@@ -273,7 +273,7 @@ void TakBoard::make_move(move_t m)
 				}
 			}
 			if (stack_sizes[current_square]) {
-				stacks[current_square][stack_sizes[current_square] - 1] = top_stones[current_square];
+				stacks[current_square].set(stack_sizes[current_square] - 1, top_stones[current_square]);
 			}
 			top_stones[current_square] = stone;
 			bordered_bitboards[stone.to_int()] |= (1ULL << current_square); // add piece to bitboard
@@ -372,11 +372,11 @@ void TakBoard::undo_move(move_t m)
 
 		// put back stones
 		if (stack_sizes[start_square] > 0) {
-			stacks[start_square][stack_sizes[start_square]] = top_stones[start_square];
+			stacks[start_square].set(stack_sizes[start_square], top_stones[start_square]);
 		}
 		bordered_bitboards[top_stones[start_square].to_int()] &= ~(1ULL << start_square); // remove top stone from bitboard
 		for (int i = 0; i < pieces_to_put_back; i++) {
-			stacks[start_square][stack_sizes[start_square] + i] = stones[i];
+			stacks[start_square].set(stack_sizes[start_square] + i, stones[i]);
 		}
 		stack_sizes[start_square] += pieces_to_put_back;
 		// adjust top stone
@@ -482,8 +482,8 @@ void TakBoard::generate_moves(MoveList* move_list)
 				SpreadIterator spread_iter = Magic::get_spread_iterator(square_idx, walls, capstones, stack_size);
 
 				// TODO add the iterator to the move list instead of copying all moves
-				while (spread_iter.has_next()) {
-					move_list->add_move(spread_iter.next());
+				if (spread_iter.has_next()) {
+					move_list->add_spread(spread_iter);
 				}
 			}
 		}

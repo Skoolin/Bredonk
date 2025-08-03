@@ -7,6 +7,7 @@
 #include "move_list.h"
 #include "piece.h"
 #include "bitboard.h"
+#include "stack.h"
 
 #pragma once
 
@@ -46,21 +47,24 @@ public:
 private:
 	void generate_moves(MoveList* move_list);
 
+
+	MoveList* move_lists[MAX_GAME_LENGTH];
+	stack_t stacks[64];
+	move_t previous_moves[MAX_GAME_LENGTH];
+
+	bitboard_t bordered_bitboards[8]; // NONE, W_FLAT, W_WALL, W_CAP, __ILLEGAL__, B_FLAT, B_WALL, B_CAP
+	Piece top_stones[64];
+	uint8_t stack_sizes[64];
+
+	uint64_t zobrist;
+
 	int32_t state;
 	int32_t current_player; // white = 1, black = -1
 	uint32_t w_reserves;
 	uint32_t b_reserves;
+	int32_t move_count;
+
 	bool w_cap_placed;
 	bool b_cap_placed;
-
-	int32_t move_count;
-	move_t previous_moves[MAX_GAME_LENGTH];
-	MoveList* move_lists[MAX_GAME_LENGTH];
 	bool did_flatten[MAX_GAME_LENGTH];
-
-	uint32_t zobrist;
-	Piece top_stones[64];
-	uint8_t stack_sizes[64];
-	Piece stacks[64][MAX_STACK_HEIGHT];
-	bitboard_t bordered_bitboards[8]; // NONE, W_FLAT, W_WALL, W_CAP, __ILLEGAL__, B_FLAT, B_WALL, B_CAP
 };
