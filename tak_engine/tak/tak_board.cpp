@@ -1,4 +1,5 @@
 #include "tak_board.h"
+#include "../search/search.h"
 #include "../params.h"
 #include "move_list.h"
 #include "enums.h"
@@ -452,29 +453,29 @@ bitboard_t TakBoard::get_bordered_bitboard(Piece type) const
 
 void TakBoard::generate_moves(MoveList* move_list)
 {
-	for (int col = 0; col < 6; col++) {
-		for (int row = 0; row < 6; row++) {
-			int square_idx = row * 8 + col; // 6x6 board, 8x8 indexing for padded bitboards
+	for (uint8_t col = 0; col < 6; col++) {
+		for (uint8_t row = 0; row < 6; row++) {
+			uint8_t square_idx = row * 8 + col; // 6x6 board, 8x8 indexing for padded bitboards
 
 			if (top_stones[square_idx] == Piece::NONE) { // add placements
-				int reserves = (current_player == PLAYER_WHITE) ? w_reserves : b_reserves;
+				uint32_t reserves = (current_player == PLAYER_WHITE) ? w_reserves : b_reserves;
 				bool capstone_placed = (current_player == PLAYER_WHITE) ? w_cap_placed : b_cap_placed;
 
 				if (reserves > 0) { // can place a flat/wall
 					// flat placement
-					move_list->add_move({ (uint8_t)((square_idx & 0b00111111U) | (1 << 6)), 0 }); // flat
+					move_list->add_move({ (uint8_t)(square_idx | 0b01000000U), 0 }); // flat
 					// wall_placement
 					if (!is_swap()) {
-						move_list->add_move({ (uint8_t)((square_idx & 0b00111111U) | (2 << 6)), 0 }); // wall
+						move_list->add_move({ (uint8_t)(square_idx | 0b10000000U), 0 }); // wall
 					}
 				}
 				if (!is_swap() && !capstone_placed) { // can place a capstone
-					move_list->add_move({ (uint8_t)((square_idx & 0b00111111U) | (3 << 6)), 0 }); // capstone
+					move_list->add_move({ (uint8_t)(square_idx | 0b11000000U), 0 }); // capstone
 				}
 			}
 			else if (!is_swap() && top_stones[square_idx].get_player() == current_player) { // add spreads
 				bool is_capstone = top_stones[square_idx].is_capstone();
-				int stack_size = stack_sizes[square_idx];
+				uint8_t stack_size = stack_sizes[square_idx];
 
 				bitboard_t walls = get_bordered_bitboard(Piece::W_WALL) | get_bordered_bitboard(Piece::B_WALL);
 				bitboard_t capstones = get_bordered_bitboard(Piece::W_CAP) | get_bordered_bitboard(Piece::B_CAP);

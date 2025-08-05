@@ -3,6 +3,7 @@
 
 #include "tak_engine.h"
 #include "search/perft.h"
+#include "search/search.h"
 #include <chrono>
 
 #include "tak/magic.h"
@@ -47,5 +48,11 @@ int from_pos()
 
 int main() {
 	//from_pos();
-    start();
+    //start();
+	//return 0;
+
+	Searcher s = Searcher();
+	TakBoard b = TakBoard();
+	auto res = s.search(b, 5);
+	std::cout << res.get_ptn() << std::endl;
 }

@@ -67,4 +67,6 @@ private:
 	bool w_cap_placed;
 	bool b_cap_placed;
 	bool did_flatten[MAX_GAME_LENGTH];
+
+	friend class Searcher;
 };
