@@ -8,8 +8,19 @@
 #include "piece.h"
 #include "bitboard.h"
 #include "stack.h"
+#include "../util/random.h"
 
 #pragma once
+
+constexpr int NUM_ZOBRISTS = 64 * 12;
+
+constexpr std::array<uint64_t, NUM_ZOBRISTS> GENERATE_ZOBRISTS() {
+	std::array<uint64_t, NUM_ZOBRISTS> result{};
+	auto rand = ConstRandom::gen(12345654U);
+	for (int i = 0; i < NUM_ZOBRISTS; i++)
+		result[i] = ConstRandom::next(&rand);
+	return result;
+}
 
 /*
 * Board representation for the game of Tak. Current implementation for 6x6 only.
@@ -46,7 +57,7 @@ public:
 
 private:
 	void generate_moves(MoveList* move_list);
-
+	constexpr static std::array<uint64_t, NUM_ZOBRISTS> ZOBRISTS = GENERATE_ZOBRISTS();
 
 	MoveList* move_lists[MAX_GAME_LENGTH];
 	stack_t stacks[64];

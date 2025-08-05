@@ -25,8 +25,8 @@ struct move_t {
     }
 
     // returns the index of the starting/placement square  
-    constexpr int square_idx() const {
-        return square_and_type & 0b00111111;
+    constexpr uint8_t square_idx() const {
+        return square_and_type & 0b00111111U;
     }
 
     // returns if the piece placed is a capstone  

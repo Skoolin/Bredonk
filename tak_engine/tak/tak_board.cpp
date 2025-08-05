@@ -205,10 +205,10 @@ static int32_t get_player(Piece p) {
 
 void TakBoard::make_move(move_t m)
 {
-	// TODO update zobrist
-
+	// switch player
+	zobrist ^= ZOBRISTS[NUM_ZOBRISTS - 1];
 	if (m.is_spread()) { // spread move
-		int start_square = m.square_idx();
+		uint8_t start_square = m.square_idx();
 		int direction = m.spread_direction();
 		int square_offset = offsets[direction];
 
@@ -228,18 +228,31 @@ void TakBoard::make_move(move_t m)
 		// TODO this can be done directly on the square stack!
 		stones[0] = top_stones[start_square];
 		bordered_bitboards[top_stones[start_square].to_int()] &= ~(1ULL << start_square); // remove top stone from bitboard
+		zobrist ^= ZOBRISTS[start_square * 12 + top_stones[start_square].to_int()];
 		stack_sizes[start_square]--;
 
 		// rest of stack:
 		for (int i = 1; i < picked_up; i++) {
 			stack_sizes[start_square]--;
-			stones[i] = stacks[start_square][stack_sizes[start_square]];
+			auto size = stack_sizes[start_square];
+			stones[i] = stacks[start_square][size];
+			bool b = stones[i] == Piece::B_FLAT;
+			uint64_t upper = ZOBRISTS[start_square * 12 + 8 + 2 * b];
+			uint64_t lower = ZOBRISTS[start_square * 12 + 9 + 2 * b];
+			zobrist ^= (upper << size) | (lower >> (64-size));
 		}
 
 		// fix top stone
 		if (stack_sizes[start_square]) {
-			top_stones[start_square] = stacks[start_square][stack_sizes[start_square] - 1];
-			bordered_bitboards[top_stones[start_square].to_int()] |= (1ULL << start_square); // add piece to bitboard
+			auto size = stack_sizes[start_square] - 1;
+			Piece p = stacks[start_square][size];
+			top_stones[start_square] = p;
+			zobrist ^= ZOBRISTS[start_square * 12 + p.to_int()];
+			bordered_bitboards[p.to_int()] |= (1ULL << start_square); // add piece to bitboard
+			bool b = p == Piece::B_FLAT;
+			uint64_t upper = ZOBRISTS[start_square * 12 + 8 + 2 * b];
+			uint64_t lower = ZOBRISTS[start_square * 12 + 9 + 2 * b];
+			zobrist ^= (upper << size) | (lower >> (64-size));
 		}
 		else {
 			top_stones[start_square] = Piece::NONE;
@@ -254,6 +267,9 @@ void TakBoard::make_move(move_t m)
 			Piece stone = stones[picked_up - i - 1];
 
 			bordered_bitboards[top_stones[current_square].to_int()] &= ~(1ULL << current_square); // remove top stone from bitboard
+			if (top_stones[current_square] != Piece::NONE) {
+				zobrist ^= ZOBRISTS[current_square * 12 + top_stones[current_square].to_int()];
+			}
 
 			if (perm & 0b10000000U) { // move to next square
 				current_square += square_offset;
@@ -274,9 +290,16 @@ void TakBoard::make_move(move_t m)
 				}
 			}
 			if (stack_sizes[current_square]) {
-				stacks[current_square].set(stack_sizes[current_square] - 1, top_stones[current_square]);
+				Piece p = top_stones[current_square];
+				int size = stack_sizes[current_square] - 1;
+				stacks[current_square].set(size, p);
+				bool b = p == Piece::B_FLAT;
+				uint64_t upper = ZOBRISTS[start_square * 12 + 8 + 2 * b];
+				uint64_t lower = ZOBRISTS[start_square * 12 + 9 + 2 * b];
+				zobrist ^= (upper << size) | (lower >> (64 - size));
 			}
 			top_stones[current_square] = stone;
+			zobrist ^= ZOBRISTS[current_square * 12 + stone.to_int()];
 			bordered_bitboards[stone.to_int()] |= (1ULL << current_square); // add piece to bitboard
 			stack_sizes[current_square]++;
 			perm <<= 1; // shift to next stone
@@ -285,6 +308,7 @@ void TakBoard::make_move(move_t m)
 	else { // placement move
 		int square = m.square_idx();
 		Piece p = m.piece_type(is_swap() ? (0 - current_player) : current_player);
+		zobrist ^= ZOBRISTS[square * 12 + p.to_int()];
 
 		top_stones[square] = p;
 		bordered_bitboards[((Piece)Piece::NONE).to_int()] &= ~(1ULL << square); // remove empty square from bitboard
@@ -339,11 +363,19 @@ void TakBoard::undo_move(move_t m)
 		for (int i = pieces_to_put_back - 1; i >= 0; i--) {
 			Piece stone = top_stones[current_square];
 			bordered_bitboards[stone.to_int()] &= ~(1ULL << current_square); // remove piece from bitboard
+			zobrist ^= ZOBRISTS[current_square * 12 + stone.to_int()];
 			stones[i] = stone;
 
 			stack_sizes[current_square]--;
 			if (stack_sizes[current_square] > 0) {
-				top_stones[current_square] = stacks[current_square][stack_sizes[current_square] - 1];
+				int size = stack_sizes[current_square] - 1;
+				Piece p = stacks[current_square][size];
+				bool b = p == Piece::B_FLAT;
+				uint64_t upper = ZOBRISTS[start_square * 12 + 8 + 2 * b];
+				uint64_t lower = ZOBRISTS[start_square * 12 + 9 + 2 * b];
+				zobrist ^= (upper << size) | (lower >> (64 - size));
+				top_stones[current_square] = p;
+				zobrist ^= ZOBRISTS[current_square * 12 + p.to_int()];
 				bordered_bitboards[top_stones[current_square].to_int()] |= (1ULL << current_square); // add piece to bitboard
 			}
 			else {
@@ -355,14 +387,11 @@ void TakBoard::undo_move(move_t m)
 				if (is_last_square && stone.is_capstone() && did_flatten[move_count]) {
 					Piece top_stone = top_stones[current_square];
 					bordered_bitboards[top_stone.to_int()] &= ~(1ULL << current_square); // remove top stone from bitboard
-					if (top_stone == Piece::B_FLAT) {
-						top_stones[current_square] = Piece::B_WALL;
-						bordered_bitboards[((Piece)Piece::B_WALL).to_int()] |= (1ULL << current_square); // add wall to bitboard
-					}
-					else if (top_stone == Piece::W_FLAT) {
-						top_stones[current_square] = Piece::W_WALL;
-						bordered_bitboards[((Piece)Piece::W_WALL).to_int()] |= (1ULL << current_square); // add wall to bitboard
-					}
+					Piece p = top_stone == Piece::B_FLAT ? Piece::B_WALL : Piece::W_WALL;
+					zobrist ^= ZOBRISTS[current_square * 12 + top_stone.to_int()];
+					zobrist ^= ZOBRISTS[current_square * 12 + p.to_int()];
+					top_stones[current_square] = p;
+					bordered_bitboards[p.to_int()] |= (1ULL << current_square);
 				}
 				// move to previous square
 				current_square -= square_offset;
@@ -373,22 +402,44 @@ void TakBoard::undo_move(move_t m)
 
 		// put back stones
 		if (stack_sizes[start_square] > 0) {
-			stacks[start_square].set(stack_sizes[start_square], top_stones[start_square]);
+			int size = stack_sizes[start_square];
+			Piece p = top_stones[start_square];
+			stacks[start_square].set(size, p);
+			zobrist ^= ZOBRISTS[start_square * 12 + p.to_int()];
+			bool b = p == Piece::B_FLAT;
+			uint64_t upper = ZOBRISTS[start_square * 12 + 8 + 2 * b];
+			uint64_t lower = ZOBRISTS[start_square * 12 + 9 + 2 * b];
+			zobrist ^= (upper << size) | (lower >> (64 - size));
 		}
 		bordered_bitboards[top_stones[start_square].to_int()] &= ~(1ULL << start_square); // remove top stone from bitboard
 		for (int i = 0; i < pieces_to_put_back; i++) {
-			stacks[start_square].set(stack_sizes[start_square] + i, stones[i]);
+			int size = stack_sizes[start_square] + i;
+			Piece p = stones[i];
+			stacks[start_square].set(size, p);
+			bool b = p == Piece::B_FLAT;
+			uint64_t upper = ZOBRISTS[start_square * 12 + 8 + 2 * b];
+			uint64_t lower = ZOBRISTS[start_square * 12 + 9 + 2 * b];
+			zobrist ^= (upper << size) | (lower >> (64 - size));
 		}
 		stack_sizes[start_square] += pieces_to_put_back;
 		// adjust top stone
-		top_stones[start_square] = stacks[start_square][stack_sizes[start_square] - 1];
+		int size = stack_sizes[start_square] - 1;
+		Piece p = stacks[start_square][size];
+		top_stones[start_square] = p;
+		zobrist ^= ZOBRISTS[start_square * 12 + p.to_int()];
+		bool b = p == Piece::B_FLAT;
+		uint64_t upper = ZOBRISTS[start_square * 12 + 8 + 2 * b];
+		uint64_t lower = ZOBRISTS[start_square * 12 + 9 + 2 * b];
+		zobrist ^= (upper << size) | (lower >> (64 - size));
 		bordered_bitboards[top_stones[start_square].to_int()] |= (1ULL << start_square); // add piece to bitboard
 	}
 
 	else { // undo placement
 		// remove stone
 		int square = m.square_idx();
-		bordered_bitboards[top_stones[square].to_int()] &= ~(1ULL << square); // remove piece from bitboard
+		Piece p = top_stones[square];
+		zobrist ^= ZOBRISTS[square * 12 + p.to_int()];
+		bordered_bitboards[p] &= ~(1ULL << square); // remove piece from bitboard
 		top_stones[square] = Piece::NONE;
 		bordered_bitboards[((Piece)Piece::NONE).to_int()] |= (1ULL << square); // add empty square to bitboard
 		stack_sizes[square] = 0;
