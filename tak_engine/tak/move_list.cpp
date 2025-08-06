@@ -65,10 +65,11 @@ uint32_t MoveList::size()
 
 bool MoveList::is_empty() const
 {
-	return move_count == 0;
+	return move_count == 0 && spread_count == 0;
 }
 
 void MoveList::reset()
 {
 	current_index = 0;
+	placement_done = false;
 }

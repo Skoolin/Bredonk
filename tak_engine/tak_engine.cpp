@@ -51,8 +51,8 @@ int main() {
     //start();
 	//return 0;
 
-	Searcher s = Searcher();
+	Searcher* s = new Searcher();
 	TakBoard b = TakBoard();
-	auto res = s.search(b, 5);
+	auto res = s->search(b, 8);
 	std::cout << res.get_ptn() << std::endl;
 }

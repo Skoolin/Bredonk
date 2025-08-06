@@ -311,7 +311,7 @@ void TakBoard::make_move(move_t m)
 		zobrist ^= ZOBRISTS[square * 12 + p.to_int()];
 
 		top_stones[square] = p;
-		bordered_bitboards[((Piece)Piece::NONE).to_int()] &= ~(1ULL << square); // remove empty square from bitboard
+		bordered_bitboards[Piece::NONE] &= ~(1ULL << square); // remove empty square from bitboard
 		bordered_bitboards[p.to_int()] |= (1ULL << square); // add piece to bitboard
 		stack_sizes[square] = 1;
 
