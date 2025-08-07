@@ -12,10 +12,10 @@ Bredonk is my attempt on implementing a competitive Tak Board Game Engine in C++
 - [ ] Komi Support
 
 ## Search
-- [ ] Alpha-Beta Search
+- [X] Alpha-Beta Search
 - [ ] Move Ordering
-- [ ] Zobrist Hashing
-- [ ] Transposition Tables
+- [X] Zobrist Hashing
+- [X] Transposition Tables
 - [ ] Iterative Deepening
 - [ ] Late Move Reduction
 - [ ] Null Move Pruning
@@ -25,8 +25,8 @@ Bredonk is my attempt on implementing a competitive Tak Board Game Engine in C++
 - [ ] Internal Iterative Deepening
 
 ## Evaluation
-- [ ] NNUE Evaluation (?)
-- [ ] SIMD Acceleration
+- [ ] NNUE Evaluation (no training code yet)
+- [X] SIMD Acceleration
 
 ## Other
 - [ ] TEI Protocol
