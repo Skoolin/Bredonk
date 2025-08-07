@@ -3,8 +3,8 @@
 #include "move_iterator.h"
 #include "magic.h"
 
-constexpr int MoveList_MAX_MOVES = 192; // Maximum number of moves in a MoveList
-constexpr int MoveList_MAX_SPREAD = 64;
+constexpr int MoveList_MAX_MOVES = 108; // Maximum number of moves in a MoveList
+constexpr int MoveList_MAX_SPREAD = 34;
 
 // MoveList is a concrete implementation of MoveIterator that stores a list of moves.
 class MoveList// : public MoveIterator

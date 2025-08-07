@@ -8,6 +8,7 @@
 #include "piece.h"
 #include "bitboard.h"
 #include "stack.h"
+#include "eval.h"
 #include "../util/random.h"
 
 #pragma once
@@ -36,6 +37,7 @@ public:
 
 	bool is_final() const;
 	int32_t get_result() const; // 0 if draw, 1 if white wins, -1 if black wins
+	int16_t get_eval();
 
 	uint64_t get_hash();
 
@@ -59,6 +61,7 @@ private:
 	void generate_moves(MoveList* move_list);
 	constexpr static std::array<uint64_t, NUM_ZOBRISTS> ZOBRISTS = GENERATE_ZOBRISTS();
 
+	Eval incremental;
 	MoveList* move_lists[MAX_GAME_LENGTH];
 	stack_t stacks[64];
 	move_t previous_moves[MAX_GAME_LENGTH];

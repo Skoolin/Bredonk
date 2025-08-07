@@ -53,6 +53,6 @@ int main() {
 
 	Searcher* s = new Searcher();
 	TakBoard b = TakBoard();
-	auto res = s->search(b, 8);
+	auto res = s->search(b, 5);
 	std::cout << res.get_ptn() << std::endl;
 }
