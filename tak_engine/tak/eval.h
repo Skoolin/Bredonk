@@ -15,10 +15,9 @@ public:
 private:
 	constexpr static int CONSIDERED_CAPTIVES = 10;
 	constexpr static int INPUTS_PER_SQUARE = 8 + 2 * CONSIDERED_CAPTIVES;
-	constexpr static int HIDDEN_COUNT = 128; // must be multiple of 32!
-	constexpr static int ACCUMULATOR_COUNT = 4 * HIDDEN_COUNT; // x4 because of pairwise multiplication and addition
+	constexpr static int ACCUMULATOR_COUNT = 512; // must be multiple of 32!
 
 	int16_t accumulators[ACCUMULATOR_COUNT];
 	const static int16_t accumulator_weights[64][INPUTS_PER_SQUARE][ACCUMULATOR_COUNT];
-	const static int8_t output_weights[HIDDEN_COUNT];
+	const static int8_t output_weights[ACCUMULATOR_COUNT];
 };
