@@ -4,11 +4,11 @@
 #include <chrono>
 
 uint64_t perft(TakBoard *board, int depth, bool verbose = false) {
-
-	// Base case: if depth is 0 or the board is in a final state, return 1 (leaf nodes)
-	// check state first for more accurate nps
-	if (board->is_final() || depth <= 0)
+	// Base case: if depth is 0, return 1 (leaf nodes)
+	if (depth <= 0)
 		return 1;
+	// we count nodes at depth x, not leaf nodes!
+	if (board->is_final()) return 0;
 
 	//	std::cout << "tps: " << board->get_tps() << std::endl;
 
@@ -46,7 +46,6 @@ uint64_t perft(TakBoard *board, int depth, bool verbose = false) {
 			std::cout << "move " << move.get_ptn() << ": " << perft_nodes << std::endl;
 		}
 	}
-
 	return nodes;
 }
 

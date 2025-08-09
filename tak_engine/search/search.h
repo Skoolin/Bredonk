@@ -3,6 +3,7 @@
 #include "../tak/tak_board.h"
 #include "zobrist.h"
 #include <iomanip>
+#include <chrono>
 
 class Searcher {
 public:
@@ -17,6 +18,7 @@ private:
 	move_t result_move;
 
 	struct search_stats_t {
+		std::chrono::steady_clock::time_point start;
 		uint64_t count;
 		uint64_t node_count;
 		uint64_t depth_count[MAX_DEPTH];
@@ -37,6 +39,7 @@ private:
 		uint64_t beta_spread;
 
 		void reset() {
+			start = std::chrono::high_resolution_clock::now();
 			count = 0;
 			node_count = 0;
 			for (int i = 0; i < MAX_DEPTH; i++)
@@ -61,12 +64,16 @@ private:
 		}
 
 		void print() const {
+			auto end_time = std::chrono::high_resolution_clock::now();
+			auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start);
+			auto nps = (count * 1000.0 / duration.count());
 			std::cout.setf(std::ios::fixed);
 			std::cout << std::setprecision(5);
 			std::cout
 				<< "Search Stats: " << std::endl
-				<< "  Nodes: total " << node_count
-					<< ", exact " << pv_count << " (" << (100.0 * (double) pv_count / (double) node_count)
+				<< "  Nodes: total " << count << ", nps: " << std::fixed << nps << std::endl
+				<< "  after tt: " << node_count
+				<< ", exact " << pv_count << " (" << (100.0 * (double) pv_count / (double) node_count)
 					<< "%), alpha " << alpha_count << " (" << (100.0 * (double)alpha_count / (double)node_count)
 					<< ", beta " << beta_count << " (" << (100.0 * (double)beta_count / (double)node_count) << "%)" << std::endl
 				<< "  Spreads: exact " << ((100.0*(double)pv_spread) / (double)pv_count)
