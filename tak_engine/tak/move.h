@@ -36,9 +36,8 @@ struct move_t {
     }
 
     // returns the integer representation of the piece type  
-    constexpr Piece piece_type(int player) const {
-        uint8_t piece_as_int = ((uint8_t)(square_and_type >> 6))
-            + (player == PLAYER_BLACK ? Piece::B_START : 0);
+    constexpr Piece piece_type(bool player) const {
+        uint8_t piece_as_int = ((uint8_t)(square_and_type >> 6)) + player * Piece::B_START;
         return Piece(static_cast<Piece::Value>(piece_as_int));
     }
 

@@ -12,6 +12,7 @@ move_t Searcher::search(TakBoard& board, int depth)
 	for (int i = 2; i <= depth; i++) {
 		alpha_beta(board, i, -MAX_SCORE, MAX_SCORE, true);
 	}
+
 	stats.print();
 	return result_move;
 }
@@ -20,10 +21,12 @@ int16_t Searcher::alpha_beta(TakBoard& board, int depth, int16_t alpha, int16_t 
 {
 	stats.count++;
 	if (board.is_final()) {
-		return board.current_player * board.get_result() * MAX_SCORE;
+		auto result = board.get_result() * MAX_SCORE;
+		return result - 2 * result * board.current_player;
 	}
 	if (depth <= 0) {
-		return board.current_player * board.get_eval();
+		auto result = board.get_eval();
+		return result - 2 * result * board.current_player;
 	}
 
 	int16_t best_score = -MAX_SCORE;
@@ -61,6 +64,8 @@ int16_t Searcher::alpha_beta(TakBoard& board, int depth, int16_t alpha, int16_t 
 
 	stats.node_count++;
 
+	bool raised_alpha = false;
+
 	auto moves = board.get_legal_moves();
 	int move_idx = -1;
 	while (moves->has_next()) {
@@ -72,13 +77,14 @@ int16_t Searcher::alpha_beta(TakBoard& board, int depth, int16_t alpha, int16_t 
 		if (new_score > beta) {
 			stats.beta_count++;
 			stats.beta_top[move_idx > 63 ? 63 : move_idx]++;
-			if (alpha > best_score)
+			if (alpha >= best_score)
 				stats.first_beats_alpha[move_idx > 63 ? 63 : move_idx]++;
 			table.update(board.zobrist, board.move_count, depth, move, new_score, false, true);
 			return new_score;
 		}
 		if (new_score > alpha) {
-			if (alpha > best_score)
+			raised_alpha = true;
+			if (alpha >= best_score)
 				stats.first_beats_alpha[move_idx > 63 ? 63 : move_idx]++;
 			alpha = new_score;
 		}
@@ -87,9 +93,9 @@ int16_t Searcher::alpha_beta(TakBoard& board, int depth, int16_t alpha, int16_t 
 			best_move = move;
 		}
 	}
-	stats.pv_count += alpha == best_score; // this is also true if didn't raise alpha but only match it. should not be a problem though I think.
-	stats.alpha_count += alpha > best_score;
-	table.update(board.zobrist, board.move_count, depth, best_move, best_score, alpha > best_score, false);
+	stats.pv_count += raised_alpha;
+	stats.alpha_count += !raised_alpha;
+	table.update(board.zobrist, board.move_count, depth, best_move, best_score, !raised_alpha, false);
 	result_move = best_move;
 	return best_score;
 }

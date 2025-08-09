@@ -20,10 +20,8 @@ TakBoard::TakBoard() :
 	current_player(PLAYER_WHITE),
 	zobrist(0),
 
-	w_reserves(30),
-	b_reserves(30),
-	w_cap_placed(false),
-	b_cap_placed(false),
+	reserves(30, 30),
+	cap_placed(false, false),
 
 	bordered_bitboards{
 		BORDER_MASK, // NONE
@@ -65,9 +63,9 @@ std::string TakBoard::get_tps() const
 			if (stack_sizes[square_idx]) {
 				auto stack = stacks[square_idx];
 				for (int i = 0; i < stack_sizes[square_idx] - 1; i++)
-					tps.append(stack[i].get_player() == -1 ? "2" : "1");
+					tps.append(stack[i].get_player() == 1 ? "2" : "1");
 				auto top_stone = top_stones[square_idx];
-				tps.append(top_stone.get_player() == -1 ? "2" : "1");
+				tps.append(top_stone.get_player() == 1 ? "2" : "1");
 				if (top_stone.is_capstone())
 					tps.append("C");
 				if (top_stone.is_wall())
@@ -82,7 +80,7 @@ std::string TakBoard::get_tps() const
 			tps.append("/");
 	}
 
-	tps.append(current_player == 1 ? " 1 " : " 2 ");
+	tps.append(current_player == PLAYER_WHITE ? " 1 " : " 2 ");
 	tps.append(std::to_string(move_count/2+1));
 
 	return tps;
@@ -138,9 +136,9 @@ static bool has_road(bitboard_t bitmap) {
 bool TakBoard::is_final() const
 {
 	// check reserves
-	if (w_reserves == 0 && w_cap_placed)
+	if (reserves[0] == 0 && cap_placed[0])
 		return true;
-	if (b_reserves == 0 && b_cap_placed)
+	if (reserves[1] == 0 && cap_placed[1])
 		return true;
 
 	// check board fill
@@ -322,39 +320,32 @@ void TakBoard::make_move(move_t m)
 	}
 	else { // placement move
 		int square = m.square_idx();
-		Piece p = m.piece_type(is_swap() ? (0 - current_player) : current_player);
-		zobrist ^= ZOBRISTS[square * 12 + p.to_int()];
-		incremental.incremental_add(square, p);
+		Piece p = m.piece_type(is_swap() ? !current_player : current_player);
 
+		Eval::incremental_prefetch(square, p);
+
+		zobrist ^= ZOBRISTS[square * 12 + p.to_int()];
 		top_stones[square] = p;
 		bordered_bitboards[Piece::NONE] &= ~(1ULL << square); // remove empty square from bitboard
 		bordered_bitboards[p.to_int()] |= (1ULL << square); // add piece to bitboard
 		stack_sizes[square] = 1;
 
+		incremental.incremental_add(square, p);
+
 		// adjust reserves
-		if (m.is_cap_placement()) {
-			if (current_player == 1) // white
-				w_cap_placed = true;
-			else
-				b_cap_placed = true;
-		}
+		cap_placed[current_player] |= m.is_cap_placement();
 		// incorrect for first move but correct after
-		else {
-			if (current_player == 1) // white
-				w_reserves--;
-			else
-				b_reserves--;
-		}
+		reserves[current_player] -= !m.is_cap_placement();
 	}
 
-	current_player = -current_player;
+	current_player = !current_player;
 	move_count++;
 }
 
 void TakBoard::undo_move(move_t m)
 {
 	move_count--;
-	current_player = -current_player;
+	current_player = !current_player;
 
 	if (m.is_spread()) { // undo spread move
 		int start_square = m.square_idx();
@@ -470,17 +461,11 @@ void TakBoard::undo_move(move_t m)
 
 		// adjust reserves
 		if (m.is_cap_placement()) {
-			if (current_player == 1) // white
-				w_cap_placed = false;
-			else
-				b_cap_placed = false;
+			cap_placed[current_player] = false;
 		}
 		// inaccurate for first move, but correct after
 		else {
-			if (current_player == 1) // white
-				w_reserves++;
-			else
-				b_reserves++;
+			reserves[current_player]++;
 		}
 	}
 
@@ -533,8 +518,8 @@ void TakBoard::generate_moves(MoveList* move_list)
 			uint8_t square_idx = row * 8 + col; // 6x6 board, 8x8 indexing for padded bitboards
 
 			if (top_stones[square_idx] == Piece::NONE) { // add placements
-				uint32_t reserves = (current_player == PLAYER_WHITE) ? w_reserves : b_reserves;
-				bool capstone_placed = (current_player == PLAYER_WHITE) ? w_cap_placed : b_cap_placed;
+				uint32_t reserves = this->reserves[current_player];
+				bool capstone_placed = cap_placed[current_player];
 
 				if (reserves > 0) { // can place a flat/wall
 					// flat placement

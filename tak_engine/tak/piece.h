@@ -37,10 +37,8 @@ public:
 		return p == Piece::W_CAP || p == Piece::B_CAP;
 	}
 
-	constexpr int32_t get_player() const {
-		if (p == Piece::NONE)
-			return 0; // no player
-		return (p >= Piece::B_FLAT) ? PLAYER_BLACK : PLAYER_WHITE;
+	constexpr bool get_player() const {
+		return p >> 2;
 	}
 
 	constexpr uint8_t to_int() const {

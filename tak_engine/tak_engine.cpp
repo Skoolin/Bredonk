@@ -4,6 +4,7 @@
 #include "tak_engine.h"
 #include "search/perft.h"
 #include "search/search.h"
+#include "tak/eval.h"
 #include <chrono>
 
 #include "tak/magic.h"
@@ -46,13 +47,15 @@ int from_pos()
 	return 0;
 }
 
+void init() {
+	Eval::init("C:\\Users\\super\\source\\repos\\tak_engine\\nnue.bin");
+}
+
 int main() {
-	//from_pos();
-    //start();
-	//return 0;
+	init();
 
 	Searcher* s = new Searcher();
 	TakBoard b = TakBoard();
-	auto res = s->search(b, 5);
+	auto res = s->search(b, 6);
 	std::cout << res.get_ptn() << std::endl;
 }

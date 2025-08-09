@@ -2,9 +2,9 @@
 
 #include <stdint.h>
 
-enum player_t: int32_t {
-	PLAYER_WHITE = 1,
-	PLAYER_BLACK = -1
+enum player_t: bool {
+	PLAYER_WHITE = 0,
+	PLAYER_BLACK = 1
 };
 
 enum game_state_t: int32_t {

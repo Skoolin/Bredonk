@@ -65,7 +65,10 @@ private:
 			std::cout << std::setprecision(5);
 			std::cout
 				<< "Search Stats: " << std::endl
-				<< "  Nodes: total " << node_count << ", exact " << pv_count << ", alpha " << alpha_count << ", beta " << beta_count << std::endl
+				<< "  Nodes: total " << node_count
+					<< ", exact " << pv_count << " (" << (100.0 * (double) pv_count / (double) node_count)
+					<< "%), alpha " << alpha_count << " (" << (100.0 * (double)alpha_count / (double)node_count)
+					<< ", beta " << beta_count << " (" << (100.0 * (double)beta_count / (double)node_count) << "%)" << std::endl
 				<< "  Spreads: exact " << ((100.0*(double)pv_spread) / (double)pv_count)
 				<< "%, alpha " << ((100.0*(double)alpha_spread) / (double)alpha_count)
 				<< "%, beta " << ((100.0*(double)beta_spread) / (double)beta_count) << "%" << std::endl

@@ -73,13 +73,11 @@ private:
 	uint64_t zobrist;
 
 	int32_t state;
-	int32_t current_player; // white = 1, black = -1
-	uint32_t w_reserves;
-	uint32_t b_reserves;
+	bool current_player; // white = 0, black = 1
+	uint32_t reserves[2];
 	int32_t move_count;
 
-	bool w_cap_placed;
-	bool b_cap_placed;
+	bool cap_placed[2];
 	bool did_flatten[MAX_GAME_LENGTH];
 
 	friend class Searcher;
