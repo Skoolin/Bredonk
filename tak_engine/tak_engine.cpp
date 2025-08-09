@@ -48,7 +48,7 @@ int from_pos()
 }
 
 void init() {
-	Eval::init("C:\\Users\\super\\source\\repos\\tak_engine\\nnue.bin");
+	Eval::init("nnue.bin");
 }
 
 int main() {
