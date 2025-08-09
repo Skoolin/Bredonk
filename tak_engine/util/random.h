@@ -2,7 +2,7 @@
 #include <cstdint>
 
 // xorshift*
-const class ConstRandom {
+class ConstRandom {
 public:
 	struct _random {
 		uint64_t state;

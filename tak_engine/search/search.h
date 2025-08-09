@@ -18,7 +18,7 @@ private:
 	move_t result_move;
 
 	struct search_stats_t {
-		std::chrono::steady_clock::time_point start;
+		std::chrono::system_clock::time_point start;
 		uint64_t count;
 		uint64_t node_count;
 		uint64_t depth_count[MAX_DEPTH];

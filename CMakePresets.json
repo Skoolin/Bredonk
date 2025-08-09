@@ -144,5 +144,13 @@
         }
       }
     }
+  ],
+  "buildPresets": [
+    {
+      "name": "linux-release",
+      "configurePreset": "linux-release",
+      "displayName": "Linux (Release)",
+      "configuration": "Release"
+    }
   ]
 }

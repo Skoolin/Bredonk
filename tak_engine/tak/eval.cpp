@@ -99,8 +99,8 @@ int16_t Eval::get_eval()
 
 void Eval::incremental_add(int square, int feature_idx)
 {
-	const __m256i* square_accums = std::assume_aligned<64>((const __m256i*) &accumulator_weights[square][feature_idx]);
-	__m256i* acc = std::assume_aligned<64>((__m256i*) &accumulators[0]);
+	const __m256i* square_accums = (const __m256i*) &accumulator_weights[square][feature_idx];
+	__m256i* acc = (__m256i*) &accumulators[0];
 	for (int a = 0; a < ACCUMULATOR_COUNT / 16; a+=4) {
 		acc[a] = _mm256_add_epi16(acc[a], square_accums[a]);
 		acc[a+1] = _mm256_add_epi16(acc[a + 1], square_accums[a + 1]);
@@ -111,8 +111,8 @@ void Eval::incremental_add(int square, int feature_idx)
 
 void Eval::incremental_remove(int square, int feature_idx)
 {
-	const __m256i* square_accums = std::assume_aligned<64>((const __m256i*) & accumulator_weights[square][feature_idx]);
-	__m256i* acc = std::assume_aligned<64>((__m256i*) & accumulators[0]);
+	const __m256i* square_accums = (const __m256i*) & accumulator_weights[square][feature_idx];
+	__m256i* acc = (__m256i*) & accumulators[0];
 	for (int a = 0; a < ACCUMULATOR_COUNT / 16; a += 4) {
 		acc[a] = _mm256_sub_epi16(acc[a], square_accums[a]);
 		acc[a + 1] = _mm256_sub_epi16(acc[a + 1], square_accums[a + 1]);
