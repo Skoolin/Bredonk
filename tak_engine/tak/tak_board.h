@@ -39,7 +39,7 @@ public:
 	int32_t get_result() const; // 0 if draw, 1 if white wins, -1 if black wins
 	int16_t get_eval();
 
-	uint64_t get_hash();
+	uint64_t get_hash() const;
 
 	void make_move(move_t m);
 	void undo_move(move_t m);

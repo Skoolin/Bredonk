@@ -39,7 +39,7 @@ private:
 		uint64_t beta_spread;
 
 		void reset() {
-			start = std::chrono::high_resolution_clock::now();
+			start = std::chrono::system_clock::now();
 			count = 0;
 			node_count = 0;
 			for (int i = 0; i < MAX_DEPTH; i++)
@@ -64,7 +64,7 @@ private:
 		}
 
 		void print() const {
-			auto end_time = std::chrono::high_resolution_clock::now();
+			auto end_time = std::chrono::system_clock::now();
 			auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start);
 			auto nps = (count * 1000.0 / duration.count());
 			std::cout.setf(std::ios::fixed);
@@ -75,7 +75,7 @@ private:
 				<< "  after tt: " << node_count
 				<< ", exact " << pv_count << " (" << (100.0 * (double) pv_count / (double) node_count)
 					<< "%), alpha " << alpha_count << " (" << (100.0 * (double)alpha_count / (double)node_count)
-					<< ", beta " << beta_count << " (" << (100.0 * (double)beta_count / (double)node_count) << "%)" << std::endl
+					<< "%), beta " << beta_count << " (" << (100.0 * (double)beta_count / (double)node_count) << "%)" << std::endl
 				<< "  Spreads: exact " << ((100.0*(double)pv_spread) / (double)pv_count)
 				<< "%, alpha " << ((100.0*(double)alpha_spread) / (double)alpha_count)
 				<< "%, beta " << ((100.0*(double)beta_spread) / (double)beta_count) << "%" << std::endl

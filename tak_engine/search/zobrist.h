@@ -29,12 +29,19 @@ struct hash_entry_t {
 	constexpr bool beta() const {
 		return age_flags & 0b001U;
 	}
+	constexpr bool matches(uint64_t zobrist) const {
+		return (zobrist & 0x0FFFFU) == lower_zobrist;
+	}
 };
 
 struct hash_bucket_t {
 	hash_entry_t entries[ENTRIES_PER_BUCKET];
-	hash_entry_t get(uint64_t zobrist) const;
 	void update(uint64_t zobrist, int move_num, int depth, move_t move, int16_t eval, bool alpha_cut, bool beta_cut);
+	constexpr hash_entry_t get(uint64_t zobrist) const {
+		for (int i = 0; i < ENTRIES_PER_BUCKET; i++)
+			if (entries[i].matches(zobrist)) return entries[i];
+		return {};
+	}
 };
 
 class HashTable {

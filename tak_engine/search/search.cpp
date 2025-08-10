@@ -33,33 +33,41 @@ int16_t Searcher::alpha_beta(TakBoard& board, int depth, int16_t alpha, int16_t 
 	move_t best_move{};
 
 	auto entry = table.get(board.get_hash());
+	auto tt_move = move_t::ILLEGAL;
 
 	if (!root && entry.is_valid()) {
 		stats.tt_count++;
 		if (entry.depth >= depth) {
 			if (entry.exact()
 				|| (entry.beta() && entry.eval > beta)
+				|| (entry.alpha() && entry.eval <= alpha)
 				) {
 				stats.tt_res++;
 				return entry.eval;
 			}
 		}
 
-		move_t move = entry.move;
-		board.make_move(move);
-		int16_t new_score = -alpha_beta(board, depth - 1, -beta, -alpha);
-		board.undo_move(move);
-		if (new_score > beta) {
-			stats.tt_beta++;
-			return new_score;
+		/*
+		// search tt move first
+		tt_move = entry.move;
+		if (board.is_legal(tt_move)) {
+			board.make_move(tt_move);
+			int16_t new_score = -alpha_beta(board, depth - 1, -beta, -alpha);
+			board.undo_move(tt_move);
+			if (new_score > beta) {
+				stats.tt_beta++;
+				return new_score;
+			}
+			if (new_score > best_score) {
+				best_score = new_score;
+			}
+			if (new_score > alpha) {
+				stats.tt_beats_alpha++;
+				alpha = new_score;
+			}
 		}
-		if (new_score > best_score) {
-			best_score = new_score;
-		}
-		if (new_score > alpha) {
-			stats.tt_beats_alpha++;
-			alpha = new_score;
-		}
+		*/
+
 	}
 
 	stats.node_count++;
@@ -69,8 +77,13 @@ int16_t Searcher::alpha_beta(TakBoard& board, int depth, int16_t alpha, int16_t 
 	auto moves = board.get_legal_moves();
 	int move_idx = -1;
 	while (moves->has_next()) {
-		move_idx++;
 		move_t move = moves->next();
+		move_idx++;
+
+		// don't search tt move again!
+		if (move == tt_move)
+			continue;
+
 		board.make_move(move);
 		int16_t new_score = -alpha_beta(board, depth - 1, -beta, -alpha);
 		board.undo_move(move);

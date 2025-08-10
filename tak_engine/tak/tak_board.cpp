@@ -196,10 +196,9 @@ int16_t TakBoard::get_eval()
 }
 
 // returns zobrist hash of the current board state
-uint64_t TakBoard::get_hash()
+uint64_t TakBoard::get_hash() const
 {
-	// TODO implement zobrist
-	return 0;
+	return zobrist;
 }
 
 static int32_t get_player(Piece p) {

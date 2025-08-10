@@ -10,6 +10,8 @@ struct move_t {
     uint8_t square_and_type; // 2 bit type/direction, 6 bit square index  
     uint8_t spread_perm;     // encoding of the spread. if 0, this is placement type else spread.
 
+    static const move_t ILLEGAL;
+
     // Equality operator to allow comparison with move_t::INVALID_MOVE  
     constexpr bool operator==(const move_t& other) const {
         return square_and_type == other.square_and_type && spread_perm == other.spread_perm;
