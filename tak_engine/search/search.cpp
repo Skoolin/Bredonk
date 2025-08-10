@@ -47,7 +47,6 @@ int16_t Searcher::alpha_beta(TakBoard& board, int depth, int16_t alpha, int16_t 
 			}
 		}
 
-		/*
 		// search tt move first
 		tt_move = entry.move;
 		if (board.is_legal(tt_move)) {
@@ -66,8 +65,9 @@ int16_t Searcher::alpha_beta(TakBoard& board, int depth, int16_t alpha, int16_t 
 				alpha = new_score;
 			}
 		}
-		*/
-
+		else {
+			tt_move = move_t::ILLEGAL;
+		}
 	}
 
 	stats.node_count++;
@@ -84,9 +84,30 @@ int16_t Searcher::alpha_beta(TakBoard& board, int depth, int16_t alpha, int16_t 
 		if (move == tt_move)
 			continue;
 
+		// debug: compare zobrist and accums before and after
+
+		auto debug_zobrist = board.get_hash();
+		auto debug_accum = board.incremental.get_sample_accum();
+
 		board.make_move(move);
+
 		int16_t new_score = -alpha_beta(board, depth - 1, -beta, -alpha);
+
 		board.undo_move(move);
+
+		if (debug_zobrist != board.get_hash()) {
+			std::cout << board.get_tps() << std::endl;
+			std::cout << move.get_ptn() << std::endl;
+			std::cout.flush();
+			throw std::runtime_error("zobrist changed after move/unmove!!!");
+		}
+		if (debug_accum != board.incremental.get_sample_accum()) {
+			std::cout << board.get_tps() << std::endl;
+			std::cout << move.get_ptn() << std::endl;
+			std::cout.flush();
+			throw std::runtime_error("incremental accumulator inconsistency after move/unmove!!!");
+		}
+
 		if (new_score > beta) {
 			stats.beta_count++;
 			stats.beta_top[move_idx > 63 ? 63 : move_idx]++;

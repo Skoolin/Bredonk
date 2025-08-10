@@ -43,9 +43,11 @@ public:
 
 	void make_move(move_t m);
 	void undo_move(move_t m);
-	bool is_legal(move_t m);
+	bool is_legal(move_t m) const;
 	MoveList* get_legal_moves();
-	bool is_swap() const;
+	inline bool is_swap() const {
+		return move_count < 2;
+	};
 
 	bitboard_t get_bordered_bitboard(Piece type) const;
 
@@ -60,6 +62,16 @@ public:
 private:
 	void generate_moves(MoveList* move_list);
 	constexpr static std::array<uint64_t, NUM_ZOBRISTS> ZOBRISTS = GENERATE_ZOBRISTS();
+
+	inline void add_incremental(int square) {
+		incremental.incremental_add(square, top_stones[square]);
+		incremental.incremental_add_stack(square, stack_sizes[square], stacks[square]);
+	}
+
+	inline void remove_incremental(int square) {
+		incremental.incremental_remove(square, top_stones[square]);
+		incremental.incremental_remove_stack(square, stack_sizes[square], stacks[square]);
+	}
 
 	Eval incremental;
 	MoveList* move_lists[MAX_GAME_LENGTH];

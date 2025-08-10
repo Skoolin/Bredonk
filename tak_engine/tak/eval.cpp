@@ -120,3 +120,30 @@ void Eval::incremental_remove(int square, int feature_idx)
 		acc[a + 3] = _mm256_sub_epi16(acc[a + 3], square_accums[a + 3]);
 	}
 }
+
+// TODO this could be a large lookup table for each possible stack permutation maybe?
+// 64 * (2 ^ (1+CONSIDERED_CAPTIVES)) * ACCUMULATOR_COUNT = 67.108.864, ~134MB lookup table...
+// stack height - 1 because top stone is not part of stack
+void Eval::incremental_add_stack(int square, int stack_height, stack_t stack)
+{
+	uint64_t mask = 0b01ULL << (stack_height-1);
+	for (int i = 0; i < std::min<int32_t>(stack_height-1, CONSIDERED_CAPTIVES); i++) {
+		mask >>= 1;
+		bool is_black = (stack & mask);
+		int feature_idx = 8 + 2 * i + is_black;
+
+		incremental_add(square, feature_idx);
+	}
+}
+
+void Eval::incremental_remove_stack(int square, int stack_height, stack_t stack)
+{
+	uint64_t mask = 0b01ULL << (stack_height-1);
+	for (int i = 0; i < std::min<int32_t>(stack_height-1, CONSIDERED_CAPTIVES); i++) {
+		mask >>= 1;
+		bool is_black = (stack & mask);
+		int feature_idx = 8 + 2 * i + is_black;
+
+		incremental_remove(square, feature_idx);
+	}
+}

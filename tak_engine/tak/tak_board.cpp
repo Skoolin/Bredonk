@@ -209,6 +209,8 @@ static int32_t get_player(Piece p) {
 
 void TakBoard::make_move(move_t m)
 {
+	did_flatten[move_count] = false;
+
 	// switch player
 	zobrist ^= ZOBRISTS[NUM_ZOBRISTS - 1];
 	if (m.is_spread()) { // spread move
@@ -234,11 +236,13 @@ void TakBoard::make_move(move_t m)
 		bordered_bitboards[top_stones[start_square].to_int()] &= ~(1ULL << start_square); // remove top stone from bitboard
 		zobrist ^= ZOBRISTS[start_square * 12 + top_stones[start_square].to_int()];
 
-		stack_sizes[start_square]--;
-
 		// incremental:
 		// remove all stacks touched by spread and add modified stacks by lookup table
-		// TODO incremental remove start_square stack
+
+		// incremental: remove start square stack
+		remove_incremental(start_square);
+
+		stack_sizes[start_square]--;
 
 		// rest of stack:
 		for (int i = 1; i < picked_up; i++) {
@@ -274,48 +278,47 @@ void TakBoard::make_move(move_t m)
 		for (int i = 0; i < picked_up; i++) {
 			Piece stone = stones[picked_up - i - 1];
 
-			bordered_bitboards[top_stones[current_square].to_int()] &= ~(1ULL << current_square); // remove top stone from bitboard
-			if (top_stones[current_square] != Piece::NONE) {
-				zobrist ^= ZOBRISTS[current_square * 12 + top_stones[current_square].to_int()];
-			}
-
 			if (perm & 0b10000000U) { // move to next square
-				// TODO incremental add current stack
-				// TODO incremental remove next stack
+				// incremental: add complete stack
+				if (stack_sizes[current_square])
+					add_incremental(current_square);
 
 				current_square += square_offset;
-				// smash top wall
-				if (stone == Piece::W_CAP || stone == Piece::B_CAP) {
-					if (top_stones[current_square].is_wall()) {
-						did_flatten[move_count] = true;
-						if (top_stones[current_square] == Piece::B_WALL) {
-							top_stones[current_square] = Piece::B_FLAT;
-						}
-						if (top_stones[current_square] == Piece::W_WALL) {
-							top_stones[current_square] = Piece::W_FLAT;
-						}
-					}
-					else {
-						did_flatten[move_count] = false;
-					}
-				}
+
+				// incremental: remove next stack
+				if (stack_sizes[current_square])
+					remove_incremental(current_square);
 			}
+
+			// adjust top stone
 			if (stack_sizes[current_square]) {
-				Piece p = top_stones[current_square];
-				int size = stack_sizes[current_square] - 1;
+				auto p = top_stones[current_square];
+				zobrist ^= ZOBRISTS[current_square * 12 + p.to_int()];
+				bordered_bitboards[p.to_int()] &= ~(1ULL << current_square);
+
+				// smash
+				if (p.is_wall()) {
+					did_flatten[move_count] = true;
+					p = (p == Piece::W_WALL) ? Piece::W_FLAT : Piece::B_FLAT;
+				}
+
+				auto size = stack_sizes[current_square] - 1;
 				stacks[current_square].set(size, p);
 				bool b = p == Piece::B_FLAT;
-				uint64_t upper = ZOBRISTS[start_square * 12 + 8 + 2 * b];
-				uint64_t lower = ZOBRISTS[start_square * 12 + 9 + 2 * b];
+				uint64_t upper = ZOBRISTS[current_square * 12 + 8 + 2 * b];
+				uint64_t lower = ZOBRISTS[current_square * 12 + 9 + 2 * b];
 				zobrist ^= (upper << size) | (lower >> (64 - size));
 			}
+
+			// add new stone
 			top_stones[current_square] = stone;
-			zobrist ^= ZOBRISTS[current_square * 12 + stone.to_int()];
-			bordered_bitboards[stone.to_int()] |= (1ULL << current_square); // add piece to bitboard
+			bordered_bitboards[stone.to_int()] |= 1ULL << current_square;
 			stack_sizes[current_square]++;
-			perm <<= 1; // shift to next stone
+			zobrist ^= ZOBRISTS[current_square * 12 + stone.to_int()];
+			perm <<= 1;
 		}
-		// TODO incremental add current (last) stack
+		// incremental: add last stack
+		add_incremental(current_square);
 	}
 	else { // placement move
 		int square = m.square_idx();
@@ -345,6 +348,7 @@ void TakBoard::undo_move(move_t m)
 {
 	move_count--;
 	current_player = !current_player;
+	zobrist ^= ZOBRISTS[NUM_ZOBRISTS - 1];
 
 	if (m.is_spread()) { // undo spread move
 		int start_square = m.square_idx();
@@ -363,7 +367,8 @@ void TakBoard::undo_move(move_t m)
 		int current_square = start_square + square_offset * distance;
 		bool is_last_square = true;
 
-		// TODO incremental remove last stack
+		// incremental: remove last stack
+		remove_incremental(current_square);
 
 		for (int i = pieces_to_put_back - 1; i >= 0; i--) {
 			Piece stone = top_stones[current_square];
@@ -376,12 +381,12 @@ void TakBoard::undo_move(move_t m)
 				int size = stack_sizes[current_square] - 1;
 				Piece p = stacks[current_square][size];
 				bool b = p == Piece::B_FLAT;
-				uint64_t upper = ZOBRISTS[start_square * 12 + 8 + 2 * b];
-				uint64_t lower = ZOBRISTS[start_square * 12 + 9 + 2 * b];
+				uint64_t upper = ZOBRISTS[current_square * 12 + 8 + 2 * b];
+				uint64_t lower = ZOBRISTS[current_square * 12 + 9 + 2 * b];
 				zobrist ^= (upper << size) | (lower >> (64 - size));
 				top_stones[current_square] = p;
 				zobrist ^= ZOBRISTS[current_square * 12 + p.to_int()];
-				bordered_bitboards[top_stones[current_square].to_int()] |= (1ULL << current_square); // add piece to bitboard
+				bordered_bitboards[p.to_int()] |= (1ULL << current_square); // add piece to bitboard
 			}
 			else {
 				top_stones[current_square] = Piece::NONE;
@@ -398,20 +403,25 @@ void TakBoard::undo_move(move_t m)
 					top_stones[current_square] = p;
 					bordered_bitboards[p.to_int()] |= (1ULL << current_square);
 				}
-				// TODO incremental add current stack
+
+				// incremental add current stack
+				if (stack_sizes[current_square])
+					add_incremental(current_square);
 
 				// move to previous square
 				current_square -= square_offset;
 				is_last_square = false;
 
-				// TODO incremental remove current stack
+				// incremental remove current stack
+				if (stack_sizes[current_square])
+					remove_incremental(current_square);
 			}
 			perm >>= 1; // shift to next stone
 		}
 
 		// put back stones
 		if (stack_sizes[start_square] > 0) {
-			int size = stack_sizes[start_square];
+			int size = stack_sizes[start_square] - 1;
 			Piece p = top_stones[start_square];
 			stacks[start_square].set(size, p);
 			zobrist ^= ZOBRISTS[start_square * 12 + p.to_int()];
@@ -421,7 +431,7 @@ void TakBoard::undo_move(move_t m)
 			zobrist ^= (upper << size) | (lower >> (64 - size));
 		}
 		bordered_bitboards[top_stones[start_square].to_int()] &= ~(1ULL << start_square); // remove top stone from bitboard
-		for (int i = 0; i < pieces_to_put_back; i++) {
+		for (int i = 0; i < pieces_to_put_back - 1; i++) {
 			int size = stack_sizes[start_square] + i;
 			Piece p = stones[i];
 			stacks[start_square].set(size, p);
@@ -433,16 +443,13 @@ void TakBoard::undo_move(move_t m)
 		stack_sizes[start_square] += pieces_to_put_back;
 		// adjust top stone
 		int size = stack_sizes[start_square] - 1;
-		Piece p = stacks[start_square][size];
+		Piece p = stones[pieces_to_put_back - 1];
 		top_stones[start_square] = p;
 		zobrist ^= ZOBRISTS[start_square * 12 + p.to_int()];
-		bool b = p == Piece::B_FLAT;
-		uint64_t upper = ZOBRISTS[start_square * 12 + 8 + 2 * b];
-		uint64_t lower = ZOBRISTS[start_square * 12 + 9 + 2 * b];
-		zobrist ^= (upper << size) | (lower >> (64 - size));
 		bordered_bitboards[top_stones[start_square].to_int()] |= (1ULL << start_square); // add piece to bitboard
 
-		// TODO incremental add start stack
+		// incremental add start stack
+		add_incremental(start_square);
 	}
 
 	else { // undo placement
@@ -469,16 +476,21 @@ void TakBoard::undo_move(move_t m)
 	}
 
 	// clear move list for this move
-	if (move_lists[move_count+1] != nullptr) {
-		move_lists[move_count+1]->clear();
+	if (move_lists[move_count + 1] != nullptr) {
+		move_lists[move_count + 1]->clear();
 	}
 }
 
-bool TakBoard::is_legal(move_t m)
+bool TakBoard::is_legal(move_t m) const
 {
 	// TODO implement legality checks
-	// for now, assume all moves are legal
-	return true;
+	if (m.is_spread())
+		return false;
+
+	auto square = m.square_idx();
+	if (m.piece_type(PLAYER_WHITE) != Piece::W_FLAT)
+		return false;
+	return !stack_sizes[square];
 }
 
 MoveList* TakBoard::get_legal_moves()
@@ -498,11 +510,6 @@ MoveList* TakBoard::get_legal_moves()
 	}
 
 	return move_iter;
-}
-
-bool TakBoard::is_swap() const
-{
-	return move_count < 2;
 }
 
 bitboard_t TakBoard::get_bordered_bitboard(Piece type) const
@@ -541,7 +548,6 @@ void TakBoard::generate_moves(MoveList* move_list)
 
 				SpreadIterator spread_iter = Magic::get_spread_iterator(square_idx, walls, capstones, stack_size);
 
-				// TODO add the iterator to the move list instead of copying all moves
 				if (spread_iter.has_next()) {
 					move_list->add_spread(spread_iter);
 				}
