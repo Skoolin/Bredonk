@@ -8,6 +8,7 @@
 #include <chrono>
 
 #include "tak/magic.h"
+#include "getopt.h"
 
 int start()
 {
@@ -48,14 +49,19 @@ int from_pos()
 }
 
 void init() {
-	Eval::init("nnue.bin");
+	Eval::init("C:\\Users\\super\\source\\repos\\tak_engine\\nnue.bin");
 }
 
-int main() {
-	init();
+int main(int argc, char* argv[]) {
+	int opt;
+	struct option long_options[] = {
+		{"help", no_argument, nullptr, 'h'},
+		{nullptr, 0, nullptr, 0}
+	};
 
-	Searcher* s = new Searcher();
-	TakBoard b = TakBoard();
-	auto res = s->search(b, 6);
-	std::cout << res.get_ptn() << std::endl;
+	while (opt = getopt(argc, argv, "h")) {
+		switch (opt) {
+
+		}
+	}
 }

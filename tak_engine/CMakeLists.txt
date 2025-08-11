@@ -5,6 +5,12 @@
 # Add source to this project's executable.
 add_executable (tak_engine "tak_engine.cpp" "tak_engine.h"   "tak/tak_board.h" "tak/move.h" "tak/tak_board.cpp" "params.h" "tak/move_iterator.h"  "search/search.h" "search/search.cpp" "tak/piece.h" "tak/move_list.h" "tak/move_list.cpp" "tak/enums.h" "tak/magic.h" "tak/magic.cpp" "util/random.h" "tak/bitboard.h" "tak/stack.h" "search/zobrist.h" "search/zobrist.cpp" "tak/eval.h" "tak/eval.cpp" "tak/move.cpp")
 
+# include windows 
+if (MSVC)
+	target_include_directories(tak_engine PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/win_include)
+endif()
+
+
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET tak_engine PROPERTY CXX_STANDARD 20)
 endif()
