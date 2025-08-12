@@ -7,7 +7,8 @@
 
 
 TakEngine::TakEngine(const std::string nnue_path)
-	: searcher(nullptr)
+	: searcher(nullptr),
+	verbose(false)
 {
 	Eval::init(nnue_path.c_str());
 }
@@ -37,21 +38,16 @@ void TakEngine::handle_command_position(std::stringstream& split) {
 	std::getline(split, token, ' ');
 
 	if (token == "tps") {
-		std::string tps;
-		std::getline(split, tps, ' ');
-		// TODO implement tps parsing
-		throw std::runtime_error("tps not implemented!");
+		// add moves	
+		while (std::getline(split, token, ' ')) {
+			board.make_move(move_t::from_ptn(token));
+		}
 	}
 	else if (token == "startpos")
 		board = TakBoard();
 	else
 		// invalid command
 		throw std::runtime_error(std::string("invalid command: position ") + token);
-
-	// add moves	
-	while (std::getline(split, token, ' ')) {
-		board.make_move(move_t::from_ptn(token));
-	}
 }
 
 void TakEngine::handle_command_go(std::stringstream& split) {
