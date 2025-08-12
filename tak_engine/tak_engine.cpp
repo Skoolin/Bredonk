@@ -182,5 +182,5 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-	TakEngine::TakEngine(nnue_path).tei_loop();
+	TakEngine(nnue_path).tei_loop();
 }
