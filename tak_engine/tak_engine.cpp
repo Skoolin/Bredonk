@@ -39,6 +39,14 @@ void TakEngine::handle_command_position(std::stringstream& split) {
 
 	if (token == "tps") {
 		// add moves	
+		// tps string
+		std::getline(split, token, ' ');
+		// current player
+		std::getline(split, token, ' ');
+		// move count
+		std::getline(split, token, ' ');
+		// "moves"
+		std::getline(split, token, ' ');
 		while (std::getline(split, token, ' ')) {
 			board.make_move(move_t::from_ptn(token));
 		}
