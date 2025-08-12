@@ -1,60 +1,29 @@
 ﻿// tak_engine.cpp : Defines the entry point for the application.
 //
 
+
 #include "tak_engine.h"
-#include "search/perft.h"
-#include "search/search.h"
-#include "tak/eval.h"
-#include <chrono>
-
-#include "tak/magic.h"
-#include "util/optparse.h"
 
 
-static int from_pos()
+
+TakEngine::TakEngine(const std::string nnue_path)
+	: searcher(nullptr)
 {
-	int depth = 2;
-	TakBoard* board;
-
-//	move_t moves[] = { move_t::from_ptn("a1"), move_t::from_ptn("f6"), { (uint8_t)((2U << 6) | 45U), 0b00000001U }};
-	move_t moves[] = { move_t::from_ptn("b3"), move_t::from_ptn("a2"), move_t::from_ptn("Ca1") };
-
-	// Reset the board to the initial state
-	board = new TakBoard();
-
-	for (move_t move : moves) {
-		board->make_move(move);
-	}
-
-	// start timer
-	auto start = std::chrono::high_resolution_clock::now();
-	uint64_t nodes = perft(board, depth, true);
-	// stop timer
-	auto end = std::chrono::high_resolution_clock::now();
-	// print perft result
-	std::cout << "Perft at depth " << depth << ": " << nodes << " nodes." << std::endl;
-	// print nodes per second
-	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-	std::cout << "Time taken: " << duration.count() << " ms." << std::endl;
-	std::cout << "Nodes per second: " << std::fixed << (nodes * 1000.0 / duration.count()) << std::endl;
-
-	delete board;
-
-	return 0;
+	Eval::init(nnue_path.c_str());
 }
 
-static void handle_command_tei() {
+void TakEngine::handle_command_tei() {
 	std::cout << "id name Bredonk author Skolin version " << version << std::endl
 		<< "size 6 halfkomi 0" << std::endl
 		<< "teiok" << std::endl
 		;
 }
 
-static void handle_command_isready() {
+void TakEngine::handle_command_isready() {
 	std::cout << "readyok" << std::endl;
 }
 
-static void handle_command_teinewgame(std::stringstream &split, TakBoard &board) {
+void TakEngine::handle_command_teinewgame(std::stringstream &split) {
 	std::string size;
 	std::string komi;
 
@@ -63,7 +32,7 @@ static void handle_command_teinewgame(std::stringstream &split, TakBoard &board)
 	board = TakBoard();
 }
 
-static void handle_command_position(std::stringstream& split, TakBoard& board) {
+void TakEngine::handle_command_position(std::stringstream& split) {
 	std::string token;
 	std::getline(split, token, ' ');
 
@@ -85,7 +54,7 @@ static void handle_command_position(std::stringstream& split, TakBoard& board) {
 	}
 }
 
-static void handle_command_go(std::stringstream& split, TakBoard& board) {
+void TakEngine::handle_command_go(std::stringstream& split) {
 	std::string token;
 
 	uint64_t wtime = 0;
@@ -94,7 +63,7 @@ static void handle_command_go(std::stringstream& split, TakBoard& board) {
 	uint64_t binc = 0;
 	uint64_t movestogo = 0;
 
-	uint64_t depth = 0;
+	uint64_t depth = 60;
 	uint64_t nodes = 0;
 	uint64_t movetime = 0;
 	bool forced = false;
@@ -144,14 +113,15 @@ static void handle_command_go(std::stringstream& split, TakBoard& board) {
 	// TODO use the parameters, we are already unpacking them!!!
 	// TODO this should be seperate threat, to be able to still parse stop command!
 
-	Searcher* searcher = new Searcher();
-	std::string move = searcher->search(board, depth).get_ptn();
-	std::cout << "bestmove " << move << std::endl;
+	searcher = new Searcher(false);
+	searcher->search(board, depth);
 }
 
-static void tei_loop() {
-	TakBoard board{};
+void TakEngine::handle_command_stop() {
+	searcher->stop();
+}
 
+void TakEngine::tei_loop() {
 	while (true) {
 		std::string line{};
 		std::getline(std::cin, line);
@@ -164,9 +134,10 @@ static void tei_loop() {
 		if (token == "quit") return;
 		else if (token == "tei") handle_command_tei();
 		else if (token == "isready") handle_command_isready();
-		else if (token == "teinewgame") handle_command_teinewgame(split, board);
-		else if (token == "position") handle_command_position(split, board);
-		else if (token == "go") handle_command_go(split, board);
+		else if (token == "teinewgame") handle_command_teinewgame(split);
+		else if (token == "position") handle_command_position(split);
+		else if (token == "go") handle_command_go(split);
+		else if (token == "stop") handle_command_stop();
 	}
 }
 
@@ -211,7 +182,5 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-	Eval::init(nnue_path.c_str());
-
-	tei_loop();
+	TakEngine::TakEngine(nnue_path).tei_loop();
 }
