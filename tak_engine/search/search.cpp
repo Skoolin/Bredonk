@@ -154,8 +154,10 @@ int16_t Searcher::alpha_beta(TakBoard& board, int depth, int16_t alpha, int16_t 
 	stats.pv_count += raised_alpha;
 	stats.alpha_count += !raised_alpha;
 	table.update(board.zobrist, board.move_count, depth, best_move, best_score, !raised_alpha, false);
-	if (root)
+	if (root) {
 		result_move = best_move;
+		stats.result_move = result_move.get_ptn();
+	}
 	return best_score;
 }
 
@@ -222,5 +224,5 @@ void Searcher::search_stats_t::print() const
 			;
 	}
 
-	std::cout << "info time " << duration.count() << " nodes " << count << " nps " << ((uint64_t) nps) << std::endl;
+	std::cout << "info pv " << result_move << " time " << duration.count() << " nodes " << count << " nps " << ((uint64_t) nps) << std::endl;
 }

@@ -23,6 +23,7 @@ private:
 
 	struct search_stats_t {
 		std::chrono::system_clock::time_point start;
+		std::string result_move;
 		uint64_t count;
 		uint64_t node_count;
 		uint64_t depth_count[MAX_DEPTH];
