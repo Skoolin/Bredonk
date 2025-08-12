@@ -15,7 +15,7 @@ TakEngine::TakEngine(const std::string nnue_path)
 
 void TakEngine::handle_command_tei() {
 	std::cout << "id name Bredonk author Skolin version " << version << std::endl
-		<< "size 6 halfkomi 0" << std::endl
+//		<< "size 6 halfkomi 0" << std::endl
 		<< "teiok" << std::endl
 		;
 }
