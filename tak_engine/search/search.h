@@ -47,7 +47,7 @@ private:
 
 		void reset();
 
-		void print() const;
+		void print(int16_t eval = 0) const;
 	};
 
 	search_stats_t stats;

@@ -31,6 +31,7 @@ constexpr std::array<uint64_t, NUM_ZOBRISTS> GENERATE_ZOBRISTS() {
 class TakBoard {
 public:
 	TakBoard();
+	TakBoard(std::string tps);
 	~TakBoard();
 
 	std::string get_tps() const;

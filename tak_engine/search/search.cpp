@@ -186,7 +186,7 @@ void Searcher::search_stats_t::reset() {
 	beta_spread = 0;
 }
 
-void Searcher::search_stats_t::print() const
+void Searcher::search_stats_t::print(int16_t eval) const
 {
 	auto end_time = std::chrono::system_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start);
@@ -224,5 +224,5 @@ void Searcher::search_stats_t::print() const
 			;
 	}
 
-	std::cout << "info pv " << result_move << " time " << duration.count() << " nodes " << count << " nps " << ((uint64_t) nps) << std::endl;
+	std::cout << "info cp " << eval << " pv " << result_move << " time " << duration.count() << " nodes " << count << " nps " << ((uint64_t) nps) << std::endl;
 }

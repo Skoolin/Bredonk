@@ -40,11 +40,17 @@ void TakEngine::handle_command_position(std::stringstream& split) {
 	if (token == "tps") {
 		// add moves	
 		// tps string
-		std::getline(split, token, ' ');
+		std::string tps;
+		std::string to_move;
+		std::string current_ply_idx;
+		std::getline(split, tps, ' ');
 		// current player
-		std::getline(split, token, ' ');
+		std::getline(split, to_move, ' ');
 		// move count
-		std::getline(split, token, ' ');
+		std::getline(split, current_ply_idx, ' ');
+
+		board = TakBoard::TakBoard(tps + " " + std::to_string(std::atoi(to_move.c_str()) - 1) + " " + current_ply_idx);
+
 		// "moves"
 		std::getline(split, token, ' ');
 		while (std::getline(split, token, ' ')) {
@@ -107,16 +113,22 @@ void TakEngine::handle_command_go(std::stringstream& split) {
 			movetime = std::stoi(token);
 		}
 		else if (token == "forced") {
-			forced = true;
+			throw std::runtime_error("mate search not supported!");
 		}
 		else if (token == "infinite") {
 			infinite = true;
 		}
 	}
 
-	// TODO use the parameters, we are already unpacking them!!!
-	// TODO this should be seperate threat, to be able to still parse stop command!
+	// if searching for depth 0, just print static eval
+	if (!infinite && !wtime && !btime && !nodes && depth == 0) {
+		// TODO scaling
+		std::cout << "info cp " << board.get_eval() << std::endl;
+		std::cout << "bestmove " << board.get_legal_moves()->next().get_ptn() << std::endl; // no search, so return any move
+		return;
+	}
 
+	// TODO use all the parameters
 	searcher = new Searcher(false);
 	searcher->search(board, depth);
 }

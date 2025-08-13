@@ -41,6 +41,11 @@ TakBoard::TakBoard() :
 		move_lists[i] = nullptr;
 }
 
+TakBoard::TakBoard(std::string tps)
+{
+	// TODO implement
+}
+
 TakBoard::~TakBoard()
 {
 	// clean up move lists
