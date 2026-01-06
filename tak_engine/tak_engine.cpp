@@ -49,7 +49,7 @@ void TakEngine::handle_command_position(std::stringstream& split) {
 		// move count
 		std::getline(split, current_ply_idx, ' ');
 
-		board = TakBoard::TakBoard(tps + " " + std::to_string(std::atoi(to_move.c_str()) - 1) + " " + current_ply_idx);
+		board = TakBoard(tps + " " + std::to_string(std::atoi(to_move.c_str()) - 1) + " " + current_ply_idx);
 
 		// "moves"
 		std::getline(split, token, ' ');
@@ -137,6 +137,10 @@ void TakEngine::handle_command_stop() {
 	searcher->stop();
 }
 
+void TakEngine::handle_command_perft() {
+	run_perft();
+}
+
 void TakEngine::tei_loop() {
 	while (true) {
 		std::string line{};
@@ -154,6 +158,7 @@ void TakEngine::tei_loop() {
 		else if (token == "position") handle_command_position(split);
 		else if (token == "go") handle_command_go(split);
 		else if (token == "stop") handle_command_stop();
+		else if (token == "perft") handle_command_perft();
 	}
 }
 

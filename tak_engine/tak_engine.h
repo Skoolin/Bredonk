@@ -31,6 +31,7 @@ private:
 	void handle_command_position(std::stringstream & split);
 	void handle_command_go(std::stringstream & split);
 	void handle_command_stop();
+	void handle_command_perft();
 	TakBoard board;
 	Searcher* searcher;
 	bool verbose;

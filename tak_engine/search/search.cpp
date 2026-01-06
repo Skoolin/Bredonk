@@ -31,8 +31,8 @@ void Searcher::iterative_deepening(TakBoard& board, int max_depth)
 	// TODO aspiration windows
 	stats.reset();
 	for (int i = 2; i <= max_depth; i++) {
-		alpha_beta(board, i, -MAX_SCORE, MAX_SCORE, true);
-		stats.print();
+		auto result = alpha_beta(board, i, -MAX_SCORE, MAX_SCORE, true);
+		stats.print(result);
 		if (command_stop)
 			break;
 	}
